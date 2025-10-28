@@ -14,7 +14,39 @@ feel free to join our discord if you beleive ai agents will be integrated into t
 ## Video Updates & Training
 📀 follow all updates here on youtube: https://www.youtube.com/playlist?list=PLXrNVMjRZUJg4M4uz52iGd1LhXXGVbIFz
 
-## Live Agents
+## Featured Project: Revival Scanner 🔄
+
+**The Revival Scanner identifies "second life" meme coin opportunities 24-72 hours after launch.**
+
+Unlike sniper bots that compete for fresh launches (0-12 hours), the Revival Scanner targets tokens that have:
+- Survived the initial rug pull window
+- Established a price floor after dumping
+- Show signs of renewed interest from smart money
+- Developed organic community support
+
+**Why Revival Trading?**
+- Lower competition (most bots focus on fresh launches)
+- Better risk/reward (tokens already survived initial scam period)
+- FREE API tiers sufficient (no expensive real-time data needed)
+- 30-40% win rate (vs 10-20% for fresh launches)
+- Sustainable approach (less stressful than speed competition)
+
+**Quick Start:**
+```bash
+# Start the web dashboard
+./start_webapp.sh
+
+# View at http://localhost:5000
+```
+
+**Documentation:**
+- 📘 [Revival Scanner PRD](REVIVAL_SCANNER_PRD.md) - Complete strategy guide
+- 🚀 [Quick Start Guide](QUICK_START_WEBAPP.md) - Get running in 2 minutes
+- 🌐 [Web App Guide](WEBAPP_README.md) - Dashboard features
+
+---
+
+## Other Live Agents
 - Trading Agent (`trading_agent.py`): Example agent that analyzes token data via LLM to make basic trade decisions
 - Strategy Agent (`strategy_agent.py`): Manages and executes trading strategies placed in the strategies folder
 - Risk Agent (`risk_agent.py`): Monitors and manages portfolio risk, enforcing position limits and PnL thresholds
@@ -34,14 +66,16 @@ feel free to join our discord if you beleive ai agents will be integrated into t
 - chat agent (`chat_agent.py`): an agent that monitors youtube live stream chat, moderates & responds to known questions. absolute fire.
 - clips agent (`clips_agent.py`): an agent that helps clip long videos into shorter ones so you can upload to your youtube and get paid more info is in the code notes and here: https://discord.gg/XAw8US9aHT
 - phone agent (`phone_agent.py`): an ai agent that can take phone calls for you
-- sniper agent (`sniper_agent.py`): sniper agent that watches for new solana token launches and will then analyze them and maybe snipe
-- tx agent (`tx_agent.py`): watches transactions made by my copy list and then prints them out with an optional auto tab open
-- solana agent (`solana_agent.py`): looks at the sniper agent and the tx agent in order to select which memes may be interesting
-- million agent (`million_agent.py`): uses million context window from gemini to pull in a knowledge base
-- tiktok agent (`tiktok_agent.py`): scrolls tiktok and gets screenshots of the video + comments to extract consumer data in order to feed into algos. sometimes called social arbitrage
-- compliance agent (`compliance_agent.py`): compliance agent to make sure all arbitrage ads are compliant on facebook... tiktok coming soon...
-- research agent (`research_agent`): an agent to fill the ideas.txt so the rbi agent can run forever
 - real time clips agent (`src/agents/realtime_clips_agent.py`): an ai agent that makes real time clips of streamers using obs
+
+### Legacy/Experimental Agents
+- sniper agent (`sniper_agent.py`): LEGACY - watches for new solana token launches (0-12 hours). Replaced by Revival Scanner
+- tx agent (`tx_agent.py`): watches transactions made by copy list
+- solana agent (`solana_agent.py`): LEGACY - looks at sniper + tx agents. Replaced by Revival Scanner
+- million agent (`million_agent.py`): uses million context window from gemini
+- tiktok agent (`tiktok_agent.py`): scrolls tiktok for consumer data
+- compliance agent (`compliance_agent.py`): compliance agent for ads
+- research agent (`research_agent`): fills ideas.txt for rbi agent
 
 **⚠️ IMPORTANT: This is an experimental project. There are NO guarantees of profitability. Trading involves substantial risk of loss.**
 

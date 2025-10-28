@@ -1,0 +1,60 @@
+[
+  {
+    "token_address": "9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump",
+    "passed": true,
+    "checks": {
+      "dexscreener": {
+        "passed": true,
+        "details": {
+          "liquidity_usd": 3566642.81,
+          "volume_24h": 335353.17,
+          "checks": {
+            "has_liquidity": true,
+            "has_volume": true,
+            "liquidity_locked": true,
+            "price_impact_low": true
+          },
+          "pair_address": "DmAsjXoceoL5vTKZbYpTpXPo7MKm16FMfNMm3PJFiUha",
+          "dex": "raydium"
+        }
+      },
+      "goplus": {
+        "passed": true,
+        "details": {
+          "warning": "GoPlus check failed: argument of type 'NoneType' is not iterable"
+        }
+      }
+    },
+    "liquidity_usd": 3566642.81,
+    "volume_24h": 335353.17
+  },
+  {
+    "token_address": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+    "passed": true,
+    "checks": {
+      "dexscreener": {
+        "passed": true,
+        "details": {
+          "liquidity_usd": 25589761.67,
+          "volume_24h": 645245.13,
+          "checks": {
+            "has_liquidity": true,
+            "has_volume": true,
+            "liquidity_locked": true,
+            "price_impact_low": true
+          },
+          "pair_address": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
+          "dex": "raydium"
+        }
+      },
+      "goplus": {
+        "passed": true,
+        "details": {
+          "warning": "GoPlus check failed: argument of type 'NoneType' is not iterable"
+        }
+      }
+    },
+    "liquidity_usd": 25589761.67,
+    "volume_24h": 645245.13
+  }
+]

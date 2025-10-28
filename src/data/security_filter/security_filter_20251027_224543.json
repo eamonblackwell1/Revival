@@ -1,0 +1,31 @@
+[
+  {
+    "token_address": "6uPQ1YuH1Vn7i56Qjkkx1V8k87ptbN3GshrGheWjDMzN",
+    "passed": true,
+    "checks": {
+      "dexscreener": {
+        "passed": true,
+        "details": {
+          "liquidity_usd": 6904399.85,
+          "volume_24h": 4378259.97,
+          "checks": {
+            "has_liquidity": true,
+            "has_volume": true,
+            "liquidity_locked": true,
+            "price_impact_low": true
+          },
+          "pair_address": "7xmoiadgK5jNbCynyKPsp5za6waiATNjCaYQs6kzK6W3",
+          "dex": "raydium"
+        }
+      },
+      "goplus": {
+        "passed": true,
+        "details": {
+          "warning": "GoPlus check failed: argument of type 'NoneType' is not iterable"
+        }
+      }
+    },
+    "liquidity_usd": 6904399.85,
+    "volume_24h": 4378259.97
+  }
+]

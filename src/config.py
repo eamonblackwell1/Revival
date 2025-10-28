@@ -95,6 +95,16 @@ SLEEP_BETWEEN_RUNS_MINUTES = 15  # How long to sleep between agent runs 🕒
 # in our nice_funcs in token over view we look for minimum trades last hour
 MIN_TRADES_LAST_HOUR = 2
 
+# Revival Scanner Settings 🔄
+BIRDEYE_TOKENS_PER_SORT = 200  # Tokens to fetch per sorting strategy (uses 4 API calls with offset)
+BIRDEYE_TOKENS_PER_PAGE = 50  # Max tokens per BirdEye API call (API limit is 50, not 100)
+MIN_LIQUIDITY_PREFILTER = 20000  # $20K minimum liquidity for quick pre-filter (before age check) - LOWERED to catch more early memes
+MIN_LIQUIDITY_STRICT = 50000  # $50K minimum liquidity for strict filter (after age check) - LOWERED from $80K
+MIN_VOLUME_1H = 15000  # $15K minimum 1-hour volume - LOWERED from $20K to catch more opportunities
+MIN_AGE_HOURS = 24  # Minimum token age in hours
+MAX_AGE_HOURS = 4320  # Maximum token age in hours (180 days / 6 months) - prevents analyzing years-old tokens
+MAX_MARKET_CAP = 20_000_000  # $20M maximum market cap (we want room to grow)
+
 
 # Real-Time Clips Agent Settings 🎬
 REALTIME_CLIPS_ENABLED = True

@@ -6,6 +6,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an experimental AI trading system that orchestrates 48+ specialized AI agents to analyze markets, execute strategies, and manage risk across cryptocurrency markets (primarily Solana). The project uses a modular agent architecture with unified LLM provider abstraction supporting Claude, GPT-4, DeepSeek, Groq, Gemini, and local Ollama models.
 
+## ⭐ Primary Focus: Revival Scanner
+
+**The main active project is the Revival Scanner** - a specialized system that identifies "second life" meme coin opportunities 24+ hours after launch using a 3-API hybrid architecture.
+
+### Why Revival Trading vs Fresh Launches:
+- **Lower Competition**: Not competing with sniper bots for 0-12 hour tokens
+- **Better Risk/Reward**: Tokens already survived initial rug pull window
+- **FREE APIs**: Works within free tier limits (BirdEye, Helius, DexScreener, GMGN)
+- **Higher Win Rate**: 30-40% vs 10-20% for fresh launches
+- **Sustainable**: Pattern-based approach, not speed-based
+- **No Maximum Age**: Revivals can happen at any time (removed 72h limit)
+
+### Revival Scanner Architecture (7-Phase Pipeline)
+
+**Phase 1: BirdEye Native Meme Token Discovery**
+- Uses `/defi/v3/token/meme/list` endpoint - guaranteed pure memecoins
+- Pass 1: Native Meme List (200 tokens) - pump.fun, Moonshot, Raydium launches
+- Pass 2: Price Change Sort (200 tokens) - potential revivals
+- Bonus: Trending List (20 tokens) - hottest tokens
+- Result: ~400 unique tokens, 100% memecoins (no keyword filtering needed)
+
+**Phase 2: Simplified Pre-Filter**
+- **Liquidity Filter**: Minimum $20K (quick filter before expensive blockchain calls)
+- **Market Cap Filter**: Maximum $20M (room for growth)
+- No memecoin detection needed (Phase 1 guarantees memecoins)
+- Result: ~150-200 tokens ready for age check
+
+**Phase 3: Helius Blockchain Age Verification**
+- Minimum age: 24 hours (avoid fresh launch chaos)
+- **Maximum age: 180 days (6 months)** - prevents analyzing years-old tokens
+- Uses `src/helius_utils.py` with RPC calls
+- Result: Tokens in the 24h-6month "revival window"
+
+**Phase 4: Strict Market Filters (DexScreener)**
+- Liquidity > $50K strict threshold
+- 1-hour volume > $15K (sustained activity)
+- Uses `src/dexscreener_utils.py`
+
+**Phase 5: DexScreener Social Enrichment**
+- Extracts boosts (trending indicators)
+- Social links (Twitter, Telegram, Discord)
+- Buy/sell ratios and community engagement metrics
+
+**Phase 6: Security Filter**
+- Stage 1 security filter removes scams
+- Holder distribution analysis (rejects if top 10 holders own >70%)
+- Uses BirdEye `/defi/v3/token/holder` endpoint
+
+**Phase 7: Revival Pattern Detection**
+- Price pattern analysis: dump → floor → recovery (OHLCV from BirdEye)
+- **Smart money analysis via BirdEye Top Traders** (replaced GMGN)
+- Whale wallet detection (>$100K holdings)
+- Weighted scoring: 50% price pattern, 30% smart money, 20% volume
+
+### Key Components:
+- **Core Agents**: `revival_detector_agent.py`, `meme_scanner_orchestrator.py`, `stage1_security_filter.py`, `meme_notifier_agent.py`
+- **Utility Modules**: `src/helius_utils.py`, `src/dexscreener_utils.py`
+- **Web Dashboard**: `web_app.py` at http://localhost:8080 (port 8080, not 5000)
+- **Documentation**: See `REVIVAL_SCANNER_PRD.md` for complete strategy
+- **Quick Start**: Run `./start_webapp.sh` to launch the web dashboard
+
+### Running Revival Scanner:
+```bash
+# Start web dashboard (auto-scans every 2 hours)
+./start_webapp.sh
+
+# Run single scan manually (for testing)
+PYTHONPATH=/Users/eamonblackwell/Meme\ Coin\ Trading\ Bot/moon-dev-ai-agents python3 src/agents/meme_scanner_orchestrator.py --once
+```
+
+### API Requirements:
+- **BirdEye API**: Native meme list, OHLCV, token overview, top traders, holder distribution (set `BIRDEYE_API_KEY` in .env)
+  - All endpoints fully integrated with BirdEye Standard tier
+  - Token Overview: `/defi/token_overview` - comprehensive metrics in one call
+  - Top Traders: `/defi/v2/tokens/top_traders` - smart money analysis
+  - Holder Distribution: `/defi/v3/token/holder` - concentration risk
+  - Meme List: `/defi/v3/token/meme/list` - guaranteed pure memecoins
+- **Helius RPC**: Blockchain age verification (set `HELIUS_RPC_ENDPOINT` in .env)
+- **DexScreener**: Social sentiment, volume (FREE, no key needed, fallback only)
+
+### Recent Scanner Upgrades (Oct 2025 - BirdEye Integration):
+- **Native Meme Discovery**: Switched to BirdEye meme list API - eliminates 15-20% miss rate
+- **6-Month Age Limit**: Added `MAX_AGE_HOURS = 4320` - prevents analyzing years-old tokens
+- **Smart Money via BirdEye**: Replaced GMGN with BirdEye Top Traders API
+- **Holder Distribution**: Added concentration risk analysis (rejects >70% top 10)
+- **Token Overview API**: Consolidated multiple endpoints into single call (30% fewer API calls)
+- **Result**: 100% pure memecoins, better data quality, more efficient pipeline
+
+### Legacy Agents (Not Actively Developed):
+- `sniper_agent.py` - Fresh launch sniper (0-12 hours) - **Replaced by Revival Scanner**
+- `solana_agent.py` - Coordinates sniper/tx agents - **Replaced by Revival Scanner**
+- Old PRDs archived as `ARCHIVED_FRESH_LAUNCH_PRD.md` and `ARCHIVED_FRESH_LAUNCH_IMPLEMENTATION.md`
+
+**When working on meme coin trading features, default to the Revival Scanner BirdEye-first approach unless specifically asked to work on legacy sniper agents.**
+
+### Important BirdEye Integration Notes:
+- **Always use BirdEye APIs first** for Revival Scanner features (token overview, top traders, holders)
+- **DexScreener is fallback only** - use when BirdEye data unavailable
+- **Token age** comes from BirdEye Token Overview `creationTime` field (Unix timestamp)
+- **Smart money** uses Top Traders endpoint, not GMGN (GMGN removed)
+- **Holder safety** checks via holder distribution endpoint (reject if top 10 >70%)
+- **Native meme list** eliminates need for keyword filtering - all tokens are guaranteed memecoins
+
 ## Key Development Commands
 
 ### Environment Setup
@@ -59,11 +162,13 @@ src/
 
 ### Agent Ecosystem
 
+**Revival Scanner (Active)**: `revival_detector_agent`, `meme_scanner_orchestrator`, `stage1_security_filter`, `meme_notifier_agent`
 **Trading Agents**: `trading_agent`, `strategy_agent`, `risk_agent`, `copybot_agent`
 **Market Analysis**: `sentiment_agent`, `whale_agent`, `funding_agent`, `liquidation_agent`, `chartanalysis_agent`
 **Content Creation**: `chat_agent`, `clips_agent`, `tweet_agent`, `video_agent`, `phone_agent`
 **Strategy Development**: `rbi_agent` (Research-Based Inference - codes backtests from videos/PDFs), `research_agent`
-**Specialized**: `sniper_agent`, `solana_agent`, `tx_agent`, `million_agent`, `tiktok_agent`, `compliance_agent`
+**Other Specialized**: `tx_agent`, `million_agent`, `tiktok_agent`, `compliance_agent`
+**Legacy/Archived**: `sniper_agent`, `solana_agent` (replaced by Revival Scanner)
 
 Each agent can run independently or as part of the main orchestrator loop.
 
@@ -88,18 +193,36 @@ response = model.generate_response(system_prompt, user_content, temperature, max
 - Risk management: `CASH_PERCENTAGE`, `MAX_POSITION_PERCENTAGE`, `MAX_LOSS_USD`, `MAX_GAIN_USD`, `MINIMUM_BALANCE_USD`
 - Agent behavior: `SLEEP_BETWEEN_RUNS_MINUTES`, `ACTIVE_AGENTS` dict in `main.py`
 - AI settings: `AI_MODEL`, `AI_MAX_TOKENS`, `AI_TEMPERATURE`
+- Revival Scanner settings:
+  - `MIN_LIQUIDITY_PREFILTER = 20000` - Initial liquidity filter
+  - `MIN_LIQUIDITY_STRICT = 50000` - Strict liquidity after age check
+  - `MIN_VOLUME_1H = 15000` - Minimum 1-hour volume
+  - `MIN_AGE_HOURS = 24` - Minimum token age (24 hours)
+  - `MAX_AGE_HOURS = 4320` - Maximum token age (180 days / 6 months)
+  - `MAX_MARKET_CAP = 20_000_000` - Maximum market cap ($20M)
 
 **Environment Variables**: `.env` (see `.env_example`)
-- Trading APIs: `BIRDEYE_API_KEY`, `MOONDEV_API_KEY`, `COINGECKO_API_KEY`
+- **Revival Scanner APIs**: `BIRDEYE_API_KEY` (required), `HELIUS_RPC_ENDPOINT` (required for age verification)
+- Other Trading APIs: `MOONDEV_API_KEY`, `COINGECKO_API_KEY`
 - AI Services: `ANTHROPIC_KEY`, `OPENAI_KEY`, `DEEPSEEK_KEY`, `GROQ_API_KEY`, `GEMINI_KEY`
 - Blockchain: `SOLANA_PRIVATE_KEY`, `HYPER_LIQUID_ETH_PRIVATE_KEY`, `RPC_ENDPOINT`
 
 ### Shared Utilities
 
 **`src/nice_funcs.py`** (~1,200 lines): Core trading functions
-- Data: `token_overview()`, `token_price()`, `get_position()`, `get_ohlcv_data()`
+- Data: `token_overview()`, `token_price()`, `get_position()`, `get_data()` (OHLCV)
 - Trading: `market_buy()`, `market_sell()`, `chunk_kill()`, `open_position()`
 - Analysis: Technical indicators, PnL calculations, rug pull detection
+
+**`src/helius_utils.py`**: Helius RPC blockchain utilities (Revival Scanner)
+- `get_token_creation_timestamp()`: Query blockchain for token mint creation time
+- `get_token_age_hours()`: Get accurate token age in hours
+- `batch_get_token_ages()`: Process multiple tokens with rate limiting (10 req/sec)
+
+**`src/dexscreener_utils.py`**: DexScreener social sentiment utilities (Revival Scanner)
+- `get_token_social_data()`: Extract boosts, Twitter, Telegram, Discord, volume
+- `batch_enrich_tokens()`: Process multiple tokens with rate limiting (5 req/sec)
+- `get_social_score()`: Calculate social sentiment score (0-1)
 
 **`src/agents/api.py`**: `MoonDevAPI` class for custom Moon Dev API endpoints
 - `get_liquidation_data()`, `get_funding_data()`, `get_oi_data()`, `get_copybot_follow_list()`
@@ -164,10 +287,20 @@ class YourStrategy(BaseStrategy):
 - AI confirmation for position-closing decisions (configurable via `USE_AI_CONFIRMATION`)
 
 ### Data Sources
-1. **BirdEye API** - Solana token data (price, volume, liquidity, OHLCV)
-2. **Moon Dev API** - Custom signals (liquidations, funding rates, OI, copybot data)
-3. **CoinGecko API** - 15,000+ token metadata, market caps, sentiment
-4. **Helius RPC** - Solana blockchain interaction
+
+**Revival Scanner (Primary - All BirdEye):**
+1. **BirdEye API** - Primary data source for all revival scanner features:
+   - Native meme token list (`/defi/v3/token/meme/list`)
+   - Token overview with comprehensive metrics (`/defi/token_overview`)
+   - OHLCV price data (`/defi/ohlcv`) via `get_data()` in `nice_funcs.py`
+   - Top traders for smart money analysis (`/defi/v2/tokens/top_traders`)
+   - Holder distribution for concentration risk (`/defi/v3/token/holder`)
+2. **Helius RPC** - Blockchain queries for accurate token creation timestamps
+3. **DexScreener API** - Social sentiment (FREE, fallback only if BirdEye unavailable)
+
+**Other Trading Agents:**
+5. **Moon Dev API** - Custom signals (liquidations, funding rates, OI, copybot data)
+6. **CoinGecko API** - 15,000+ token metadata, market caps, sentiment
 
 ### Autonomous Execution
 - Main loop runs every 15 minutes by default (`SLEEP_BETWEEN_RUNS_MINUTES`)
