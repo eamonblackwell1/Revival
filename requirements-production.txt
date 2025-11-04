@@ -21,13 +21,13 @@ groq>=0.4.0
 # ============================================================================
 numpy>=1.24.0
 pandas>=2.0.0
-pandas-ta>=0.3.14b0
+# pandas-ta>=0.3.14b0  # REMOVED: Not used by Revival Scanner
 
 # ============================================================================
 # TRADING & BACKTESTING
 # ============================================================================
 backtesting>=0.3.3
-ta-lib>=0.4.0  # Note: Requires system TA-Lib library
+# ta-lib>=0.4.0  # REMOVED: Not used by Revival Scanner, requires system C library
 
 # ============================================================================
 # API & WEB REQUESTS
@@ -63,5 +63,5 @@ youtube-transcript-api>=0.6.2
 # - Flask/Flask-CORS added (were installed via start_webapp.sh, not in requirements)
 # - gunicorn added for production WSGI server
 # - Removed opencv, whisper, ffmpeg, pillow (not needed for Revival Scanner)
-# - Kept ta-lib (requires apt-get install ta-lib on system)
-# - Total package reduction: ~800MB saved by removing opencv/whisper
+# - Removed pandas-ta and ta-lib (not used by Revival Scanner, caused build failures)
+# - Total package reduction: ~800MB saved by removing unnecessary packages
