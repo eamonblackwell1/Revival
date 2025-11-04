@@ -40,11 +40,11 @@ class EmailNotifier:
         self.username = config.PAPER_TRADING_EMAIL_USERNAME or self.email_address
         self.password = os.getenv('EMAIL_PASSWORD', '')
 
-        # Notification preferences
-        self.notify_position_opened = config.PAPER_TRADING_NOTIFY_POSITION_OPENED
-        self.notify_stop_loss = config.PAPER_TRADING_NOTIFY_STOP_LOSS
-        self.notify_take_profit = config.PAPER_TRADING_NOTIFY_TAKE_PROFIT
-        self.notify_failed_exit = config.PAPER_TRADING_NOTIFY_FAILED_EXIT
+        # Notification preferences (prefixed with 'should_' to avoid method name collision)
+        self.should_notify_position_opened = config.PAPER_TRADING_NOTIFY_POSITION_OPENED
+        self.should_notify_stop_loss = config.PAPER_TRADING_NOTIFY_STOP_LOSS
+        self.should_notify_take_profit = config.PAPER_TRADING_NOTIFY_TAKE_PROFIT
+        self.should_notify_failed_exit = config.PAPER_TRADING_NOTIFY_FAILED_EXIT
 
     def _send_email(self, subject: str, body: str, is_html: bool = False) -> bool:
         """
@@ -98,7 +98,7 @@ class EmailNotifier:
 
     def notify_position_opened(self, position: Dict) -> bool:
         """Send notification when a position is opened"""
-        if not self.notify_position_opened:
+        if not self.should_notify_position_opened:
             return False
 
         subject = f"🟢 Paper Position Opened: {position['symbol']}"
@@ -125,11 +125,11 @@ View dashboard: {config.WEB_APP_BASE_URL}
         exit_type = trade['exit_type']
 
         # Check if this type of exit should trigger notification
-        if exit_type == 'stop_loss' and not self.notify_stop_loss:
+        if exit_type == 'stop_loss' and not self.should_notify_stop_loss:
             return False
-        if exit_type in ['take_profit_1', 'take_profit_2'] and not self.notify_take_profit:
+        if exit_type in ['take_profit_1', 'take_profit_2'] and not self.should_notify_take_profit:
             return False
-        if exit_type == 'failed_exit' and not self.notify_failed_exit:
+        if exit_type == 'failed_exit' and not self.should_notify_failed_exit:
             return False
 
         # Determine emoji based on exit type

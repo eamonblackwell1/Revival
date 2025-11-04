@@ -68,10 +68,16 @@ class PaperTradingAgent:
         positions_opened = []
 
         for opp in opportunities:
-            # Extract token data
-            token_address = opp.get('address')
-            symbol = opp.get('symbol', 'UNKNOWN')
+            # Extract token data (match Revival Detector output format)
+            token_address = opp.get('token_address')
+            symbol = opp.get('token_symbol', opp.get('symbol', 'UNKNOWN'))
             revival_score = float(opp.get('revival_score', 0))
+
+            # Validate token address
+            if not token_address:
+                print(f"⚠️  Warning: Skipping opportunity - missing token_address field")
+                print(f"    Available keys: {list(opp.keys())}")
+                continue
 
             # Check if meets minimum score threshold
             if revival_score < config.PAPER_TRADING_MIN_REVIVAL_SCORE:
@@ -262,10 +268,11 @@ def main():
     # Initialize agent
     agent = PaperTradingAgent()
 
-    # Create mock opportunity for testing
+    # Create mock opportunity for testing (matches Revival Detector output format)
     mock_opportunity = {
-        'address': 'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC',  # AI16Z
-        'symbol': 'AI16Z',
+        'token_address': 'HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC',  # AI16Z
+        'token_symbol': 'AI16Z',
+        'token_name': 'ai16z',
         'revival_score': 0.75,
         'liquidity_usd': 100000,
         'market_cap': 5000000,
