@@ -21,7 +21,11 @@ except ImportError:
     ta = None  # Not available, technical indicator functions will not work
 from datetime import datetime, timedelta
 from termcolor import colored, cprint
-import solders
+# solders is optional - only used for Solana blockchain functions
+try:
+    import solders
+except ImportError:
+    solders = None  # Solana SDK not available, blockchain functions will not work
 from dotenv import load_dotenv
 import shutil
 import atexit
