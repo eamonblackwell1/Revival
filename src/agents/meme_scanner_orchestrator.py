@@ -224,34 +224,52 @@ class MemeScannerOrchestrator:
         # Extract addresses from the filtered token dicts
         prefiltered_addresses = [token['address'] for token in prefiltered_tokens]
 
-        # PHASE 3: Age filtering via Helius blockchain (72h minimum, 180d maximum)
-        print(colored("\n[PHASE 3/3] Blockchain Age Verification (Helius)", "cyan", attrs=['bold']))
-        self._update_progress("Age Verification", 3, "Checking token ages via Helius blockchain...",
+        # PHASE 3: Age filtering using BirdEye data (72h minimum, 180d maximum)
+        print(colored("\n[PHASE 3/3] Age Verification (Using BirdEye Data)", "cyan", attrs=['bold']))
+        self._update_progress("Age Verification", 3, "Filtering tokens by age using BirdEye data...",
                             tokens_filtered=len(prefiltered_addresses))
-        aged_tokens_dict = self.filter_by_age_helius(
-            prefiltered_addresses,
-            min_age_hours=MIN_AGE_HOURS  # Minimum 72 hours (3 days)
-        )
 
-        if not aged_tokens_dict:
-            print(colored("❌ No tokens passed age filter", "red"))
-            self._log_error("No tokens passed age filter (all too young)")
-            return []
-
-        # Merge aged tokens with their BirdEye data from Phase 2
-        # Create a lookup dict for fast access to token data
-        token_data_lookup = {token['address']: token for token in prefiltered_tokens}
-
-        # Build full token dicts for aged tokens (preserve BirdEye data AND add age_hours)
         aged_tokens_with_data = []
-        for addr, age_hours in aged_tokens_dict.items():
-            if addr in token_data_lookup:
-                token = token_data_lookup[addr].copy()
-                token['age_hours'] = age_hours  # ADD AGE DATA!
-                aged_tokens_with_data.append(token)
+        tokens_needing_helius = []  # Fallback for tokens without BirdEye age data
+
+        # Filter by age using BirdEye data from Phase 2
+        for token in prefiltered_tokens:
+            age_hours = token.get('age_hours')
+
+            if age_hours is not None:
+                # We have age data from BirdEye
+                if MIN_AGE_HOURS <= age_hours <= MAX_AGE_HOURS:
+                    aged_tokens_with_data.append(token)
+                    print(colored(f"  ✅ {token['address'][:8]}... = {age_hours:.1f}h (from BirdEye)", "green"))
+                else:
+                    if age_hours < MIN_AGE_HOURS:
+                        print(colored(f"  ❌ {token['address'][:8]}... = {age_hours:.1f}h (too young, need >{MIN_AGE_HOURS}h)", "grey"))
+                    else:
+                        print(colored(f"  ❌ {token['address'][:8]}... = {age_hours:.1f}h (too old, need <{MAX_AGE_HOURS}h)", "grey"))
             else:
-                # Shouldn't happen, but handle gracefully
-                aged_tokens_with_data.append({'address': addr, 'age_hours': age_hours})
+                # No age data from BirdEye, need to use Helius as fallback
+                tokens_needing_helius.append(token)
+
+        # Fallback: Use Helius for tokens without BirdEye age data (should be rare)
+        if tokens_needing_helius:
+            print(colored(f"\n  ⚠️ {len(tokens_needing_helius)} tokens lack BirdEye age data, falling back to Helius...", "yellow"))
+            helius_addresses = [token['address'] for token in tokens_needing_helius]
+            aged_tokens_dict = self.filter_by_age_helius(
+                helius_addresses,
+                min_age_hours=MIN_AGE_HOURS
+            )
+
+            # Add Helius-verified tokens to results
+            for token in tokens_needing_helius:
+                if token['address'] in aged_tokens_dict:
+                    token['age_hours'] = aged_tokens_dict[token['address']]
+                    aged_tokens_with_data.append(token)
+                    print(colored(f"  ✅ {token['address'][:8]}... = {token['age_hours']:.1f}h (from Helius fallback)", "yellow"))
+
+        if not aged_tokens_with_data:
+            print(colored("❌ No tokens passed age filter", "red"))
+            self._log_error("No tokens passed age filter (all too young or too old)")
+            return []
 
         # Store Phase 3 tokens with full data
         self.phase_tokens['phase3_aged'] = aged_tokens_with_data
@@ -583,8 +601,9 @@ class MemeScannerOrchestrator:
         """
         try:
             address = token['address']
+            api_key = os.getenv('BIRDEYE_API_KEY')  # Store in variable for reuse
             url = f"https://public-api.birdeye.so/defi/token_overview?address={address}"
-            headers = {'X-API-KEY': os.getenv('BIRDEYE_API_KEY')}
+            headers = {'X-API-KEY': api_key}
 
             response = requests.get(url, headers=headers, timeout=15)
 
@@ -627,6 +646,48 @@ class MemeScannerOrchestrator:
             enriched['market_cap'] = overview_data.get('mc', enriched.get('market_cap', 0))
             enriched['volume_24h'] = overview_data.get('v24hUSD', enriched.get('volume_24h', 0))
             enriched['price_change_24h'] = overview_data.get('v24hChangePercent', 0)
+
+            # Extract creation time from token_security endpoint (THE REAL FIX!)
+            # token_overview doesn't have creationTime, but token_security does
+            creation_time = None
+            age_hours = None
+
+            # Try to get creation time from token_security endpoint
+            try:
+                security_url = "https://public-api.birdeye.so/defi/token_security"
+                headers = {
+                    'X-API-KEY': api_key,
+                    'Accept': 'application/json'
+                }
+                params = {
+                    'address': address  # Use the address variable from line 603
+                }
+
+                # Rate limit - BirdEye allows 1 req/sec
+                time.sleep(1.0)
+
+                security_response = requests.get(security_url, headers=headers, params=params, timeout=10)
+
+                if security_response.status_code == 200:
+                    security_data = security_response.json()
+                    if security_data.get('success', True) and 'data' in security_data:
+                        security_info = security_data['data']
+                        creation_time = security_info.get('creationTime')
+                        if creation_time:
+                            import time as time_module
+                            age_hours = (time_module.time() - creation_time) / 3600
+                            enriched['creation_time'] = creation_time
+                            enriched['age_hours'] = age_hours
+                            # Log for debugging popular tokens
+                            if token.get('symbol') == '1':  # The problematic token
+                                print(colored(f"    📅 Token '1' age from BirdEye Security: {age_hours:.1f} hours ({age_hours/24:.1f} days)", "cyan"))
+            except Exception as e:
+                print(colored(f"    ⚠️ Could not get creation time for {token.get('symbol', 'Unknown')}: {str(e)}", "yellow"))
+
+            # Set to None if we couldn't get the data
+            if creation_time is None:
+                enriched['creation_time'] = None
+                enriched['age_hours'] = None
 
             return enriched
 
