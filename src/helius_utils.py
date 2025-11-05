@@ -83,47 +83,79 @@ def get_token_creation_timestamp(mint_address: str, rpc_url: str) -> Optional[in
         Unix timestamp (seconds) of token creation, or None if failed
 
     Method:
-        1. Call getSignaturesForAddress to get first transaction signature
-        2. Call getTransaction to get block time
+        1. Call getSignaturesForAddress with pagination to get ALL signatures
+        2. Find the actual oldest signature (first transaction)
+        3. Call getTransaction to get block time
 
-    Cost: 2 Helius credits (1 per RPC call)
+    Cost: Variable (1 credit per 1000 signatures + 1 credit for blockTime)
     """
     try:
-        # Rate limit the first request
-        helius_rate_limiter.wait_if_needed()
+        all_signatures = []
+        before_signature = None
+        batch_count = 0
 
-        # Step 1: Get the oldest signature for this mint address
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getSignaturesForAddress",
-            "params": [
-                mint_address,
-                {
-                    "limit": 1000  # Max limit to find oldest transaction
-                }
-            ]
-        }
+        # Keep fetching signatures in batches until we have them all
+        while True:
+            # Rate limit each request
+            helius_rate_limiter.wait_if_needed()
 
-        response = requests.post(rpc_url, json=payload, timeout=15)
+            # Build params with pagination
+            params = {"limit": 1000}
+            if before_signature:
+                params["before"] = before_signature
 
-        if response.status_code != 200:
-            print(colored(f"❌ Helius RPC error: HTTP {response.status_code}", "red"))
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSignaturesForAddress",
+                "params": [mint_address, params]
+            }
+
+            response = requests.post(rpc_url, json=payload, timeout=15)
+
+            if response.status_code != 200:
+                print(colored(f"❌ Helius RPC error: HTTP {response.status_code}", "red"))
+                print(colored(f"   Response: {response.text[:200]}", "red"))
+                return None
+
+            data = response.json()
+
+            if 'error' in data:
+                print(colored(f"❌ RPC error: {data['error']}", "red"))
+                if 'message' in data['error']:
+                    print(colored(f"   Message: {data['error']['message']}", "red"))
+                return None
+
+            signatures = data.get('result', [])
+
+            if not signatures:
+                # No more signatures to fetch
+                break
+
+            all_signatures.extend(signatures)
+            batch_count += 1
+
+            # If we got fewer than 1000, we've reached the end
+            if len(signatures) < 1000:
+                break
+
+            # Set pagination cursor to continue from the oldest signature in this batch
+            before_signature = signatures[-1]['signature']
+
+            # Safety check - prevent infinite loops for extremely active tokens
+            if batch_count > 500:  # 500,000+ transactions
+                print(colored(f"⚠️ Token {mint_address[:8]}... has 500k+ transactions, stopping pagination", "yellow"))
+                break
+
+        if not all_signatures:
             return None
 
-        data = response.json()
+        # Log how many signatures we fetched for debugging
+        if batch_count > 1:
+            print(colored(f"   📊 Fetched {len(all_signatures)} signatures in {batch_count} batches for {mint_address[:8]}...", "cyan"))
 
-        if 'error' in data:
-            print(colored(f"❌ RPC error: {data['error']}", "red"))
-            return None
-
-        signatures = data.get('result', [])
-
-        if not signatures:
-            return None
-
-        # Get the oldest signature (last in the list, as they're returned newest-first)
-        oldest_sig = signatures[-1]['signature']
+        # Get the actual oldest signature (last in the complete list)
+        oldest_sig = all_signatures[-1]['signature']
 
         # Rate limit the second request
         helius_rate_limiter.wait_if_needed()
@@ -159,6 +191,9 @@ def get_token_creation_timestamp(mint_address: str, rpc_url: str) -> Optional[in
         return block_time
 
     except Exception as e:
+        print(colored(f"❌ Exception in get_token_creation_timestamp: {str(e)}", "red"))
+        import traceback
+        traceback.print_exc()
         return None
 
 def get_token_age_hours(mint_address: str, rpc_url: str) -> Optional[float]:
