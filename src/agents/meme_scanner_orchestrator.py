@@ -72,8 +72,15 @@ class MemeScannerOrchestrator:
         self.max_tokens_per_scan = BIRDEYE_TOKENS_PER_SORT * 3  # ~600 tokens per scan (3 sorting strategies)
         self.min_revival_score = 0.4  # Minimum score to consider
 
-        # Data storage
-        self.data_dir = Path(__file__).parent.parent / "data" / "meme_scanner"
+        # Data storage - use Railway volume if available
+        if os.getenv('RAILWAY_ENVIRONMENT'):
+            # Running on Railway - use absolute path to mounted volume
+            data_root = Path("/app/src/data")
+        else:
+            # Running locally - use relative path
+            data_root = Path(__file__).parent.parent / "data"
+
+        self.data_dir = data_root / "meme_scanner"
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         # Track scanning history

@@ -68,10 +68,21 @@ scanner_thread = None
 orchestrator = None
 
 # Persistence file paths
-PERSISTENCE_DIR = Path(__file__).parent / "data" / "web_app_state"
+# Railway volume is mounted at /app/src/data (see railway.toml)
+# Locally, we use relative path src/data
+if os.getenv('RAILWAY_ENVIRONMENT'):
+    # Running on Railway - use absolute path to mounted volume
+    DATA_ROOT = Path("/app/src/data")
+else:
+    # Running locally - use relative path
+    DATA_ROOT = Path(__file__).parent / "data"
+
+PERSISTENCE_DIR = DATA_ROOT / "web_app_state"
 METADATA_FILE = PERSISTENCE_DIR / "scanner_metadata.json"
 ACTIVITY_LOG_FILE = PERSISTENCE_DIR / "activity_log.jsonl"
 PHASE_FUNNEL_FILE = PERSISTENCE_DIR / "last_scan_phases.json"
+
+print(f"📂 Data directory: {DATA_ROOT}")
 
 def _ensure_persistence_dir():
     """Create persistence directory if it doesn't exist"""
@@ -80,7 +91,7 @@ def _ensure_persistence_dir():
 def _load_latest_scan_results():
     """Load most recent scan results from CSV files"""
     try:
-        data_dir = Path(__file__).parent / "data" / "meme_scanner"
+        data_dir = DATA_ROOT / "meme_scanner"
 
         if not data_dir.exists():
             return []
@@ -483,7 +494,7 @@ def get_token_details(address):
 def get_history():
     """Get scan history from saved files"""
     try:
-        data_dir = Path(__file__).parent / "data" / "meme_scanner"
+        data_dir = DATA_ROOT / "meme_scanner"
 
         if not data_dir.exists():
             return jsonify({'scans': []})
@@ -516,7 +527,7 @@ def get_history():
 def download_latest_phase5():
     """Download the latest Phase 5 analysis CSV"""
     try:
-        data_dir = Path(__file__).parent / "data" / "meme_scanner"
+        data_dir = DATA_ROOT / "meme_scanner"
 
         if not data_dir.exists():
             return jsonify({'error': 'No scan data available'}), 404
@@ -544,7 +555,7 @@ def download_latest_phase5():
 def get_alerts():
     """Get recent alerts"""
     try:
-        data_dir = Path(__file__).parent / "data" / "meme_notifier"
+        data_dir = DATA_ROOT / "meme_notifier"
         today_file = data_dir / f"alerts_{datetime.now().strftime('%Y%m%d')}.csv"
 
         if not today_file.exists():
@@ -578,7 +589,7 @@ def get_phases():
         else:
             # Try to load from most recent phase funnel JSON
             try:
-                data_dir = Path(__file__).parent / "data" / "meme_scanner"
+                data_dir = DATA_ROOT / "meme_scanner"
                 phase_files = sorted(data_dir.glob("phase_funnel_*.json"), reverse=True)
                 if phase_files:
                     with open(phase_files[0], 'r') as f:
