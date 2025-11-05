@@ -764,9 +764,9 @@ class MemeScannerOrchestrator:
 
         print(colored(f"\n⏰ Age Filter: Minimum {min_age_hours}h (no maximum)", "cyan"))
 
-        rpc_url = os.getenv('HELIUS_RPC_ENDPOINT')
+        rpc_url = os.getenv('HELIUS_RPC_ENDPOINT') or os.getenv('RPC_ENDPOINT')
         if not rpc_url:
-            print(colored("❌ HELIUS_RPC_ENDPOINT not configured", "red"))
+            print(colored("❌ Neither HELIUS_RPC_ENDPOINT nor RPC_ENDPOINT configured", "red"))
             return {}
 
         ages = batch_get_token_ages(token_addresses, rpc_url)

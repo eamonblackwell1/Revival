@@ -186,7 +186,7 @@ python src/paper_trading/performance_analyzer.py
   - Top Traders: `/defi/v2/tokens/top_traders` - smart money analysis
   - Holder Distribution: `/defi/v3/token/holder` - concentration risk
   - Meme List: `/defi/v3/token/meme/list` - guaranteed pure memecoins
-- **Helius RPC**: Blockchain age verification (set `HELIUS_RPC_ENDPOINT` in .env)
+- **Helius RPC**: Blockchain age verification (set `RPC_ENDPOINT` or `HELIUS_RPC_ENDPOINT` in .env - either works)
 - **DexScreener**: NOT USED in primary pipeline (kept as fallback utility only)
 
 ### Critical Implementation Details
@@ -358,11 +358,15 @@ response = model.generate_response(system_prompt, user_content, temperature, max
   - `SOCIAL_SENTIMENT_WEIGHT = 0.10` - Revival scoring weight (**NEW**)
 
 **Environment Variables**: `.env` (see `.env_example`)
-- **Revival Scanner APIs**: `BIRDEYE_API_KEY` (required), `RPC_ENDPOINT` (required - used as HELIUS_RPC_ENDPOINT for age verification)
+- **Revival Scanner APIs**:
+  - `BIRDEYE_API_KEY` (required)
+  - `RPC_ENDPOINT` or `HELIUS_RPC_ENDPOINT` (required - full Helius RPC URL with API key for age verification)
+    - Format: `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY_HERE`
+    - Either variable name works (orchestrator checks both with fallback)
 - **Paper Trading**: `EMAIL_PASSWORD` (Gmail App Password for notifications - see https://support.google.com/accounts/answer/185833)
 - Other Trading APIs: `MOONDEV_API_KEY`, `COINGECKO_API_KEY`
 - AI Services: `ANTHROPIC_KEY`, `OPENAI_KEY`, `DEEPSEEK_KEY`, `GROQ_API_KEY`, `GEMINI_KEY`, `GROK_API_KEY`
-- Blockchain: `SOLANA_PRIVATE_KEY`, `HYPER_LIQUID_ETH_PRIVATE_KEY`, `RPC_ENDPOINT`
+- Blockchain: `SOLANA_PRIVATE_KEY`, `HYPER_LIQUID_ETH_PRIVATE_KEY`
 
 ### Shared Utilities
 
