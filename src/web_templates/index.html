@@ -236,7 +236,14 @@
 
                 if (data.last_scan_time) {
                     const lastScan = new Date(data.last_scan_time);
-                    document.getElementById('lastScan').textContent = lastScan.toLocaleTimeString();
+                    // Convert to Tokyo time (JST - UTC+9)
+                    document.getElementById('lastScan').textContent = lastScan.toLocaleTimeString('en-US', {
+                        timeZone: 'Asia/Tokyo',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    }) + ' JST';
                 }
 
                 // Update progress if scan is running
@@ -314,7 +321,14 @@
                 div.className = 'activity-item ' + (item.level || 'info');
 
                 const timestamp = new Date(item.timestamp);
-                const timeStr = timestamp.toLocaleTimeString();
+                // Convert to Tokyo time (JST - UTC+9)
+                const timeStr = timestamp.toLocaleTimeString('en-US', {
+                    timeZone: 'Asia/Tokyo',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
 
                 div.innerHTML = `
                     <span class="activity-timestamp">${timeStr}</span>
@@ -482,12 +496,18 @@
         // Start scanner
         async function startScanner() {
             try {
+                // First get current settings to show correct interval
+                const statusResponse = await fetch('/api/status');
+                const statusData = await statusResponse.json();
+                const scanInterval = statusData.settings?.scan_interval || 3600;
+
+                // Now start the scanner
                 const response = await fetch('/api/scan/start', { method: 'POST' });
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Get scan interval from settings and format message
-                    const intervalMinutes = Math.floor(scannerSettings.scan_interval / 60);
+                    // Format interval message
+                    const intervalMinutes = Math.floor(scanInterval / 60);
                     const intervalMsg = intervalMinutes >= 60
                         ? `${Math.floor(intervalMinutes / 60)} hour${intervalMinutes >= 120 ? 's' : ''}`
                         : `${intervalMinutes} minute${intervalMinutes > 1 ? 's' : ''}`;
