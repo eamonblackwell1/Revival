@@ -226,8 +226,13 @@ class RevivalDetectorAgent:
             print(colored(f"  📊 Analyzing complete price history...", "yellow"))
 
             # Calculate days back from token age (fetch complete history)
-            age_hours = token_data.get('age_hours', 72)
-            days_back = min(int(age_hours / 24) + 1, 30)  # Cap at 30 days for API limits
+            age_hours = token_data.get('age_hours')
+            if age_hours is None:
+                raise ValueError(f"Token {token_address} missing age_hours - Phase 3 age verification may have failed")
+
+            # Use ceil() for proper rounding - requests exact days based on token lifetime
+            import math
+            days_back = min(math.ceil(age_hours / 24), 30)  # Cap at 30 days for API limits
 
             # Choose timeframe based on token age for optimal granularity
             if age_hours <= 1000:  # Less than 41 days
