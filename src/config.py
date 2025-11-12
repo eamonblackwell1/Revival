@@ -101,6 +101,9 @@ MIN_TRADES_LAST_HOUR = 2
 BIRDEYE_TOKENS_PER_SORT = 2000  # Total tokens to fetch (top 2000 by liquidity - optimized for revival trading)
 BIRDEYE_TOKENS_PER_PAGE = 50  # Max tokens per BirdEye API call (API limit is 50, NOT 100)
 BIRDEYE_USE_NATIVE_MEME_LIST = True  # Use native /defi/v3/token/meme/list (guarantees pure memecoins)
+BIRDEYE_REQUEST_TIMEOUT = 15  # Seconds before BirdEye requests time out
+BIRDEYE_REQUEST_MAX_RETRIES = 3  # Number of times to retry failed BirdEye requests
+BIRDEYE_REQUEST_RETRY_DELAY = 5  # Base delay (seconds) between BirdEye retry attempts
 MIN_LIQUIDITY_PREFILTER = 20000  # $20K minimum liquidity (Phase 2 - BirdEye filter)
 MIN_LIQUIDITY_STRICT = 50000  # $50K minimum liquidity (DEPRECATED - no longer used, kept for backward compatibility)
 MIN_VOLUME_1H = 500  # $500 minimum 1-hour volume (Phase 2 - applied via 24h volume estimation = $12K/day)

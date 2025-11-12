@@ -22,6 +22,7 @@ import time
 import json
 import csv
 import requests
+from requests.exceptions import RequestException, Timeout
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -303,6 +304,9 @@ class MemeScannerOrchestrator:
         all_tokens = []
         tokens_per_page = BIRDEYE_TOKENS_PER_PAGE  # 50 tokens per API call
         num_pages = (tokens_to_fetch + tokens_per_page - 1) // tokens_per_page
+        max_retries = BIRDEYE_REQUEST_MAX_RETRIES
+        retry_delay = BIRDEYE_REQUEST_RETRY_DELAY
+        request_timeout = BIRDEYE_REQUEST_TIMEOUT
 
         try:
             for page in range(num_pages):
