@@ -13,6 +13,7 @@ import threading
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -46,7 +47,7 @@ scanner_state = {
     'last_scan_time': None,
     'settings': {
         'scan_interval': 3600,  # 60 minutes / 1 hour (safe for BirdEye Starter tier - uses ~36% of monthly API limit)
-        'min_revival_score': 0.4,
+        'min_revival_score': 0.7,
         'auto_scan': False
     },
     'progress': {
@@ -139,6 +140,9 @@ def _load_metadata():
         scanner_state['scan_count'] = metadata.get('scan_count', 0)
         scanner_state['last_scan_time'] = metadata.get('last_scan_time')
         scanner_state['settings'] = metadata.get('settings', scanner_state['settings'])
+        # Enforce minimum revival score floor
+        current_min = scanner_state['settings'].get('min_revival_score', 0.7)
+        scanner_state['settings']['min_revival_score'] = max(current_min, 0.7)
 
         print(f"✅ Loaded metadata: {scanner_state['scan_count']} scans completed")
 
@@ -383,7 +387,8 @@ def get_errors():
 @app.route('/api/results')
 def get_results():
     """Get latest scan results"""
-    min_score = request.args.get('min_score', 0.4, type=float)
+    default_min = scanner_state['settings'].get('min_revival_score', 0.7)
+    min_score = request.args.get('min_score', default_min, type=float)
 
     # Filter by minimum score
     filtered_results = [
@@ -489,7 +494,7 @@ def settings():
         if 'scan_interval' in data:
             scanner_state['settings']['scan_interval'] = int(data['scan_interval'])
         if 'min_revival_score' in data:
-            scanner_state['settings']['min_revival_score'] = float(data['min_revival_score'])
+            scanner_state['settings']['min_revival_score'] = max(float(data['min_revival_score']), 0.7)
 
         return jsonify({
             'status': 'updated',
@@ -712,7 +717,7 @@ def get_phases():
         phase_data.append({
             'phase': 5,
             'name': 'Revival Opportunities',
-            'description': 'Final opportunities with revival scores ≥0.4',
+            'description': 'Final opportunities with revival scores ≥0.7',
             'count': len(phase5),
             'samples': [
                 {
@@ -743,6 +748,39 @@ def get_phases():
 paper_trading_agent = None
 performance_analyzer = None
 
+try:
+    import numpy as np
+    _NUMPY_SCALARS = (np.generic,)
+except ImportError:  # pragma: no cover - numpy optional
+    np = None
+    _NUMPY_SCALARS = tuple()
+
+
+def _make_json_safe(value):
+    """Recursively convert values into JSON-serializable primitives."""
+    if isinstance(value, dict):
+        return {key: _make_json_safe(val) for key, val in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_make_json_safe(item) for item in value]
+
+    if isinstance(value, Decimal):
+        return float(value)
+
+    if np is not None:
+        if isinstance(value, _NUMPY_SCALARS):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return [_make_json_safe(item) for item in value.tolist()]
+
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except TypeError:
+            pass
+
+    return value
+
 def init_paper_trading():
     """Initialize paper trading components"""
     global paper_trading_agent, performance_analyzer
@@ -766,7 +804,7 @@ def paper_portfolio():
 
         return jsonify({
             'status': 'success',
-            'portfolio': summary
+            'portfolio': _make_json_safe(summary)
         })
 
     except Exception as e:
@@ -785,7 +823,7 @@ def paper_positions():
 
         return jsonify({
             'status': 'success',
-            'positions': positions,
+            'positions': _make_json_safe(positions),
             'count': len(positions)
         })
 
@@ -828,7 +866,7 @@ def paper_trades():
 
         return jsonify({
             'status': 'success',
-            'trades': page_trades.to_dict('records'),
+            'trades': _make_json_safe(page_trades.to_dict('records')),
             'count': len(trades_df),
             'page': page,
             'per_page': per_page,
@@ -858,7 +896,7 @@ def paper_metrics():
 
         return jsonify({
             'status': 'success',
-            'metrics': metrics
+            'metrics': _make_json_safe(metrics)
         })
 
     except Exception as e:

@@ -365,7 +365,7 @@
                 // Update counts
                 document.getElementById('opportunityCount').textContent = data.filtered;
 
-                const highPriority = data.results.filter(r => r.revival_score >= 0.8).length;
+                const highPriority = data.results.filter(r => r.revival_score >= 0.9).length;
                 document.getElementById('highPriorityCount').textContent = highPriority;
 
             } catch (error) {
@@ -400,8 +400,8 @@
         // Create token card
         function createTokenCard(token) {
             const score = token.revival_score || 0;
-            const priority = score >= 0.8 ? 'high' : (score >= 0.6 ? 'medium' : 'low');
-            const priorityLabel = score >= 0.8 ? 'HIGH' : (score >= 0.6 ? 'MEDIUM' : 'LOW');
+            const priority = score >= 0.9 ? 'high' : (score >= 0.8 ? 'medium' : 'low');
+            const priorityLabel = score >= 0.9 ? 'HIGH' : (score >= 0.8 ? 'MEDIUM' : 'LOW');
 
             // Contract address (shortened)
             const address = token.token_address || '';

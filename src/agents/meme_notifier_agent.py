@@ -30,9 +30,9 @@ class MemeNotifierAgent:
     Sends alerts when high-confidence opportunities are found
 
     Priority levels:
-    🔴 HIGH: Immediate action required (revival score > 0.8)
-    🟡 MEDIUM: Worth watching (revival score 0.6-0.8)
-    🟢 LOW: Informational (revival score 0.4-0.6)
+    🔴 HIGH: Immediate action required (revival score ≥ 0.9)
+    🟡 MEDIUM: Worth watching (revival score 0.8-0.9)
+    🟢 LOW: Informational (revival score 0.7-0.8)
     """
 
     def __init__(self):
@@ -45,9 +45,9 @@ class MemeNotifierAgent:
         self.save_to_csv = True       # Log all alerts
 
         # Priority thresholds
-        self.high_priority_threshold = 0.8
-        self.medium_priority_threshold = 0.6
-        self.low_priority_threshold = 0.4
+        self.high_priority_threshold = 0.9
+        self.medium_priority_threshold = 0.8
+        self.low_priority_threshold = 0.7
 
         # Data storage
         self.data_dir = Path(__file__).parent.parent / "data" / "meme_notifier"

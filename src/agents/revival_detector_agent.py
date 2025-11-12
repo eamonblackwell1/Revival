@@ -777,7 +777,7 @@ class RevivalDetectorAgent:
         }
 
         # Print summary with component scores for ALL tokens (pass or fail)
-        if revival_score >= 0.4:  # Passing score
+        if revival_score >= 0.7:  # Passing score
             print(colored(f"  ✅ {token_data.get('token_symbol', 'Unknown')} Revival Score: {revival_score:.2f} - PASSED", "green"))
         else:  # Failing score
             print(colored(f"  ❌ {token_data.get('token_symbol', 'Unknown')} Revival Score: {revival_score:.2f} - FAILED", "red"))

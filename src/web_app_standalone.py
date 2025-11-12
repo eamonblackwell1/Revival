@@ -30,7 +30,7 @@ scanner_state = {
     'last_scan_time': None,
     'settings': {
         'scan_interval': 300,
-        'min_revival_score': 0.4,
+        'min_revival_score': 0.7,
         'auto_scan': False
     }
 }
@@ -177,7 +177,8 @@ def get_status():
 @app.route('/api/results')
 def get_results():
     """Get latest scan results"""
-    min_score = request.args.get('min_score', 0.4, type=float)
+    default_min = scanner_state['settings'].get('min_revival_score', 0.7)
+    min_score = request.args.get('min_score', default_min, type=float)
 
     filtered_results = [
         r for r in scanner_state['results']
@@ -261,7 +262,7 @@ def settings():
         if 'scan_interval' in data:
             scanner_state['settings']['scan_interval'] = int(data['scan_interval'])
         if 'min_revival_score' in data:
-            scanner_state['settings']['min_revival_score'] = float(data['min_revival_score'])
+            scanner_state['settings']['min_revival_score'] = max(float(data['min_revival_score']), 0.7)
 
         return jsonify({
             'status': 'updated',

@@ -915,10 +915,23 @@ class MemeScannerOrchestrator:
 
         if not tokens:
             print(colored("❌ No tokens from discovery pipeline!", "red"))
+            self._update_progress(
+                "Scan Complete",
+                5,
+                "Scan ended: no tokens available after discovery",
+                tokens_filtered=0,
+                step="completed"
+            )
             return []
 
         # Step 2: Security filter
         print(colored("\n[Step 2/3] Running security filter...", "yellow", attrs=['bold']))
+        self._update_progress(
+            "Security Filter",
+            4,
+            "Running security checks on aged tokens...",
+            tokens_filtered=len(tokens)
+        )
         security_results = self.security_filter.batch_filter(tokens, max_workers=3)
 
         # Keep FULL token data, not just addresses!
@@ -941,13 +954,32 @@ class MemeScannerOrchestrator:
         self.phase_tokens['phase4_security_passed'] = [{'address': t.get('address') or t.get('token_address')} for t in passed_security]
 
         print(colored(f"🛡️ {len(passed_security)} tokens passed security", "green"))
+        self._update_progress(
+            "Security Filter",
+            4,
+            f"Security checks complete: {len(passed_security)} tokens passed",
+            tokens_filtered=len(passed_security)
+        )
 
         if not passed_security:
             print(colored("❌ No tokens passed security filter!", "red"))
+            self._update_progress(
+                "Scan Complete",
+                5,
+                "Scan complete: no tokens passed security filter",
+                tokens_filtered=0,
+                step="completed"
+            )
             return []
 
         # Step 3: Check for revival patterns
         print(colored("\n[Step 3/3] Detecting revival patterns...", "yellow", attrs=['bold']))
+        self._update_progress(
+            "Revival Detection",
+            5,
+            "Analyzing tokens for revival patterns...",
+            tokens_filtered=len(passed_security)
+        )
         revival_results = []
         all_phase5_results = []  # Track ALL results for analysis
         failure_reasons = {}  # Track failure reasons
@@ -1049,6 +1081,14 @@ class MemeScannerOrchestrator:
         # Print summary
         self.print_scan_summary(revival_results)
 
+        self._update_progress(
+            "Scan Complete",
+            5,
+            f"Scan complete: {len(revival_results)} revival opportunities found",
+            tokens_filtered=len(revival_results),
+            step="completed"
+        )
+
         return revival_results
 
     def save_scan_results(self, results: List[Dict]):
@@ -1131,7 +1171,7 @@ class MemeScannerOrchestrator:
                     'smart_score': result.get('smart_score', 0.0),
                     'volume_score': result.get('volume_score', 0.0),
                     'social_score': result.get('social_score', 0.0),
-                    'passed': result.get('revival_score', 0.0) >= 0.4,
+                    'passed': result.get('revival_score', 0.0) >= self.min_revival_score,
                     'failure_reason': result.get('failure_reason', ''),
                     'error': result.get('error', ''),
                     'liquidity_usd': result.get('liquidity_usd', 0),
