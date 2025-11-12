@@ -37,22 +37,38 @@ class PaperTradingAgent:
     - Realistic fee and slippage simulation
     """
 
-    def __init__(self):
+    @staticmethod
+    def _default_log(message: str, level: str = 'info'):
+        """Fallback logger that prints to stdout"""
+        print(message)
+
+    @staticmethod
+    def _default_log_error(message: str):
+        """Fallback error logger that prints to stdout"""
+        print(message)
+
+    def __init__(self, log_fn=None, error_fn=None):
         """Initialize paper trading agent"""
-        self.position_manager = PositionManager()
+        self._log = log_fn or self._default_log
+        self._log_error = error_fn or self._default_log_error
+
+        self.position_manager = PositionManager(
+            log_fn=self._log,
+            error_fn=self._log_error
+        )
         self.monitoring_active = False
         self.monitor_thread = None
 
-        print("🤖 Paper Trading Agent initialized")
-        print(f"   Initial Balance: ${config.PAPER_TRADING_INITIAL_BALANCE:,.2f}")
-        print(f"   Position Size: ${config.PAPER_TRADING_POSITION_SIZE_USD:,.2f}")
-        print(f"   Max Positions: {config.PAPER_TRADING_MAX_POSITIONS}")
-        print(f"   Min Revival Score: {config.PAPER_TRADING_MIN_REVIVAL_SCORE}")
+        self._log("🤖 Paper Trading Agent initialized", 'info')
+        self._log(f"   Initial Balance: ${config.PAPER_TRADING_INITIAL_BALANCE:,.2f}", 'info')
+        self._log(f"   Position Size: ${config.PAPER_TRADING_POSITION_SIZE_USD:,.2f}", 'info')
+        self._log(f"   Max Positions: {config.PAPER_TRADING_MAX_POSITIONS}", 'info')
+        self._log(f"   Min Revival Score: {config.PAPER_TRADING_MIN_REVIVAL_SCORE}", 'info')
 
         # Auto-resume monitoring if we have existing open positions
         open_positions = self.position_manager.get_open_positions()
         if open_positions:
-            print(f"\n🔄 Found {len(open_positions)} existing positions - auto-resuming monitoring...")
+            self._log(f"\n🔄 Found {len(open_positions)} existing positions - auto-resuming monitoring...", 'info')
             self.start_monitoring()
 
     def evaluate_opportunities(self, opportunities: List[Dict]) -> List[Dict]:
@@ -66,10 +82,10 @@ class PaperTradingAgent:
             List of positions opened
         """
         if not opportunities:
-            print("📊 No revival opportunities to evaluate")
+            self._log("📊 No revival opportunities to evaluate", 'info')
             return []
 
-        print(f"\n📊 Evaluating {len(opportunities)} revival opportunities for paper trading...")
+        self._log(f"\n📊 Evaluating {len(opportunities)} revival opportunities for paper trading...", 'info')
 
         positions_opened = []
 
@@ -81,23 +97,23 @@ class PaperTradingAgent:
 
             # Validate token address
             if not token_address:
-                print(f"⚠️  Warning: Skipping opportunity - missing token_address field")
-                print(f"    Available keys: {list(opp.keys())}")
+                self._log("⚠️  Skipping opportunity - missing token_address field", 'warning')
+                self._log(f"    Available keys: {list(opp.keys())}", 'warning')
                 continue
 
             # Check if meets minimum score threshold
             if revival_score < config.PAPER_TRADING_MIN_REVIVAL_SCORE:
-                print(f"⏭️  Skipping {symbol}: score {revival_score:.2f} < {config.PAPER_TRADING_MIN_REVIVAL_SCORE}")
+                self._log(f"⏭️  Skipping {symbol}: score {revival_score:.2f} < {config.PAPER_TRADING_MIN_REVIVAL_SCORE}", 'info')
                 continue
 
             # Check if already have a position
             existing_positions = self.position_manager.get_open_positions()
             if any(p['token_address'] == token_address for p in existing_positions):
-                print(f"⏭️  Skipping {symbol}: already have open position")
+                self._log(f"⏭️  Skipping {symbol}: already have open position", 'info')
                 continue
 
             # Try to open position
-            print(f"\n🎯 Opening paper position: {symbol} (score: {revival_score:.2f})")
+            self._log(f"\n🎯 Opening paper position: {symbol} (score: {revival_score:.2f})", 'info')
             position = self.position_manager.open_position(
                 token_address=token_address,
                 symbol=symbol,
@@ -106,11 +122,11 @@ class PaperTradingAgent:
 
             if position:
                 positions_opened.append(position)
-                print(f"✅ Position opened for {symbol}")
+                self._log(f"✅ Position opened for {symbol}", 'success')
             else:
-                print(f"❌ Failed to open position for {symbol}")
+                self._log(f"❌ Failed to open position for {symbol}", 'warning')
 
-        print(f"\n✅ Opened {len(positions_opened)} paper trading positions")
+        self._log(f"\n✅ Opened {len(positions_opened)} paper trading positions", 'info')
 
         # Start monitoring if we have positions and monitoring not active
         if positions_opened and not self.monitoring_active:
@@ -121,13 +137,13 @@ class PaperTradingAgent:
     def start_monitoring(self):
         """Start background thread to monitor positions"""
         if self.monitoring_active:
-            print("⚠️  Monitoring already active")
+            self._log("⚠️  Monitoring already active", 'warning')
             return
 
         self.monitoring_active = True
         self.monitor_thread = threading.Thread(target=self._monitor_positions, daemon=True)
         self.monitor_thread.start()
-        print("🔄 Started position monitoring")
+        self._log("🔄 Started position monitoring", 'info')
 
     def stop_monitoring(self):
         """Stop background monitoring thread"""
@@ -137,7 +153,7 @@ class PaperTradingAgent:
         self.monitoring_active = False
         if self.monitor_thread:
             self.monitor_thread.join(timeout=5)
-        print("⏸️  Stopped position monitoring")
+        self._log("⏸️  Stopped position monitoring", 'info')
 
     def _monitor_positions(self):
         """
@@ -145,18 +161,18 @@ class PaperTradingAgent:
 
         Runs continuously every PRICE_CHECK_INTERVAL seconds
         """
-        print(f"👀 Monitoring positions every {config.PAPER_TRADING_PRICE_CHECK_INTERVAL} seconds...")
+        self._log(f"👀 Monitoring positions every {config.PAPER_TRADING_PRICE_CHECK_INTERVAL} seconds...", 'info')
 
         while self.monitoring_active:
             try:
                 open_positions = self.position_manager.get_open_positions()
 
                 if not open_positions:
-                    print("💤 No open positions to monitor")
+                    self._log("💤 No open positions to monitor", 'info')
                     time.sleep(config.PAPER_TRADING_PRICE_CHECK_INTERVAL)
                     continue
 
-                print(f"\n🔍 Checking {len(open_positions)} positions...")
+                self._log(f"\n🔍 Checking {len(open_positions)} positions...", 'info')
 
                 for position in open_positions:
                     position_id = position['id']
@@ -167,10 +183,10 @@ class PaperTradingAgent:
                     try:
                         current_price = token_price(token_address)
                         if not current_price or current_price <= 0:
-                            print(f"⚠️  Invalid price for {symbol}, skipping check")
+                            self._log(f"⚠️  Invalid price for {symbol}, skipping check", 'warning')
                             continue
                     except Exception as e:
-                        print(f"❌ Failed to get price for {symbol}: {e}")
+                        self._log_error(f"❌ Failed to get price for {symbol}: {e}")
                         continue
 
                     # Update position with current price
@@ -183,10 +199,10 @@ class PaperTradingAgent:
                     exit_type = self.position_manager.check_exit_conditions(position_id, current_price)
 
                     if exit_type:
-                        print(f"\n🚨 Exit trigger for {symbol}: {exit_type}")
-                        print(f"   Entry: ${position['entry_price']:.8f}")
-                        print(f"   Current: ${current_price:.8f}")
-                        print(f"   P&L: {pnl_pct:+.2f}%")
+                        self._log(f"\n🚨 Exit trigger for {symbol}: {exit_type}", 'warning')
+                        self._log(f"   Entry: ${position['entry_price']:.8f}", 'info')
+                        self._log(f"   Current: ${current_price:.8f}", 'info')
+                        self._log(f"   P&L: {pnl_pct:+.2f}%", 'info')
 
                         # Execute exit
                         trade = self.position_manager.close_position(
@@ -196,16 +212,16 @@ class PaperTradingAgent:
                         )
 
                         if trade:
-                            print(f"✅ Exit executed successfully")
+                            self._log("✅ Exit executed successfully", 'success')
                     else:
                         # Just log current status
-                        print(f"   {symbol}: ${current_price:.8f} ({pnl_pct:+.2f}%)")
+                        self._log(f"   {symbol}: ${current_price:.8f} ({pnl_pct:+.2f}%)", 'info')
 
                 # Sleep until next check
                 time.sleep(config.PAPER_TRADING_PRICE_CHECK_INTERVAL)
 
             except Exception as e:
-                print(f"❌ Error in monitoring loop: {e}")
+                self._log_error(f"❌ Error in monitoring loop: {e}")
                 time.sleep(config.PAPER_TRADING_PRICE_CHECK_INTERVAL)
 
     def get_portfolio_summary(self) -> Dict:
@@ -226,17 +242,17 @@ class PaperTradingAgent:
         position = next((p for p in positions if p['id'] == position_id), None)
 
         if not position:
-            print(f"❌ Position {position_id} not found or already closed")
+            self._log("❌ Position {position_id} not found or already closed".format(position_id=position_id), 'warning')
             return False
 
         # Get current price
         try:
             current_price = token_price(position['token_address'])
             if not current_price or current_price <= 0:
-                print(f"❌ Cannot close: invalid price for {position['symbol']}")
+                self._log(f"❌ Cannot close: invalid price for {position['symbol']}", 'warning')
                 return False
         except Exception as e:
-            print(f"❌ Cannot close: failed to get price: {e}")
+            self._log_error(f"❌ Cannot close: failed to get price: {e}")
             return False
 
         # Close position
@@ -247,17 +263,17 @@ class PaperTradingAgent:
         )
 
         if trade:
-            print(f"✅ Manually closed position {position['symbol']}")
+            self._log(f"✅ Manually closed position {position['symbol']}", 'success')
             return True
         else:
-            print(f"❌ Failed to close position {position['symbol']}")
+            self._log(f"❌ Failed to close position {position['symbol']}", 'warning')
             return False
 
     def reset(self):
         """Reset paper trading to initial state"""
         self.stop_monitoring()
         self.position_manager.reset_paper_trading()
-        print("♻️ Paper trading reset complete")
+        self._log("♻️ Paper trading reset complete", 'info')
 
 
 def main():

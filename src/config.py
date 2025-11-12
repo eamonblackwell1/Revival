@@ -104,7 +104,7 @@ BIRDEYE_USE_NATIVE_MEME_LIST = True  # Use native /defi/v3/token/meme/list (guar
 BIRDEYE_REQUEST_TIMEOUT = 15  # Seconds before BirdEye requests time out
 BIRDEYE_REQUEST_MAX_RETRIES = 3  # Number of times to retry failed BirdEye requests
 BIRDEYE_REQUEST_RETRY_DELAY = 5  # Base delay (seconds) between BirdEye retry attempts
-MIN_LIQUIDITY_PREFILTER = 20000  # $20K minimum liquidity (Phase 2 - BirdEye filter)
+MIN_LIQUIDITY_PREFILTER = 30000  # $30K minimum liquidity (Phase 2 - BirdEye filter)
 MIN_LIQUIDITY_STRICT = 50000  # $50K minimum liquidity (DEPRECATED - no longer used, kept for backward compatibility)
 MIN_VOLUME_1H = 500  # $500 minimum 1-hour volume (Phase 2 - applied via 24h volume estimation = $12K/day)
 MIN_AGE_HOURS = 72  # Minimum token age in hours (Phase 3 - 3 days, avoid early pump chaos)
@@ -125,9 +125,9 @@ SOCIAL_SENTIMENT_WEIGHT = 0.25  # 25% - BirdEye social metrics (increased from 1
 # Paper Trading Settings 📊
 PAPER_TRADING_ENABLED = True  # Enable paper trading simulation
 PAPER_TRADING_INITIAL_BALANCE = 10000  # $10K starting capital
-PAPER_TRADING_POSITION_SIZE_USD = 1000  # $1K per trade
+PAPER_TRADING_POSITION_SIZE_USD = 100  # $100 per trade
 PAPER_TRADING_MAX_POSITIONS = 10  # Max concurrent positions
-PAPER_TRADING_MIN_REVIVAL_SCORE = 0.4  # Minimum score to trade (0-1) - aligned with scanner display threshold
+PAPER_TRADING_MIN_REVIVAL_SCORE = 0.7  # Minimum score to trade (0-1) - aligned with tighter opportunity threshold
 
 # Paper Trading Exit Strategy 🎯
 PAPER_TRADING_STOP_LOSS_PCT = -20  # -20% stop loss
@@ -154,13 +154,20 @@ WEB_APP_BASE_URL = os.getenv('WEB_APP_BASE_URL', 'http://localhost:8080')  # Set
 FLASK_ENV = os.getenv('FLASK_ENV', 'development')  # 'production' or 'development'
 FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'  # Debug mode (off by default)
 
+# Helper to parse booleans from environment variables
+def _env_bool(var_name: str, default: bool) -> bool:
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.lower() in ("1", "true", "yes", "on")
+
 # Paper Trading Email Notifications 📧
-PAPER_TRADING_EMAIL_ENABLED = True  # Enable email notifications
-PAPER_TRADING_EMAIL_ADDRESS = ""  # Your email address (set this!)
-PAPER_TRADING_EMAIL_SMTP_SERVER = "smtp.gmail.com"  # Gmail SMTP (change if using different provider)
-PAPER_TRADING_EMAIL_SMTP_PORT = 587  # TLS port
-PAPER_TRADING_EMAIL_USERNAME = ""  # Usually same as email address
-# NOTE: Set EMAIL_PASSWORD in .env file for security (not here!)
+PAPER_TRADING_EMAIL_ENABLED = _env_bool("PAPER_TRADING_EMAIL_ENABLED", True)  # Enable email notifications
+PAPER_TRADING_EMAIL_ADDRESS = os.getenv("PAPER_TRADING_EMAIL_ADDRESS", "")  # Your email address (set this!)
+PAPER_TRADING_EMAIL_SMTP_SERVER = os.getenv("PAPER_TRADING_EMAIL_SMTP_SERVER", "smtp.gmail.com")  # Change if needed
+PAPER_TRADING_EMAIL_SMTP_PORT = int(os.getenv("PAPER_TRADING_EMAIL_SMTP_PORT", "587"))  # TLS port
+PAPER_TRADING_EMAIL_USERNAME = os.getenv("PAPER_TRADING_EMAIL_USERNAME", PAPER_TRADING_EMAIL_ADDRESS)  # Defaults to address
+# NOTE: Set EMAIL_PASSWORD in environment (e.g., Railway secrets or .env) for security
 
 # Notification Preferences 🔔
 PAPER_TRADING_NOTIFY_POSITION_OPENED = True  # Email when position opens

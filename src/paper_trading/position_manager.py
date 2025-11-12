@@ -37,8 +37,19 @@ except ImportError:
 class PositionManager:
     """Manages paper trading positions with CSV persistence"""
 
-    def __init__(self):
+    @staticmethod
+    def _default_log(message: str, level: str = 'info'):
+        print(message)
+
+    @staticmethod
+    def _default_log_error(message: str):
+        print(message)
+
+    def __init__(self, log_fn=None, error_fn=None):
         """Initialize position manager with CSV file paths"""
+        self._log = log_fn or self._default_log
+        self._log_error = error_fn or self._default_log_error
+
         self.data_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'paper_trading')
         os.makedirs(self.data_dir, exist_ok=True)
 
@@ -179,23 +190,23 @@ class PositionManager:
         # Check position limits
         open_positions = len([p for p in self.positions.values() if p['status'] == 'open'])
         if open_positions >= config.PAPER_TRADING_MAX_POSITIONS:
-            print(f"❌ Cannot open position: max positions ({config.PAPER_TRADING_MAX_POSITIONS}) reached")
+            self._log(f"❌ Cannot open position: max positions ({config.PAPER_TRADING_MAX_POSITIONS}) reached", 'warning')
             return None
 
         # Check cash balance
         position_size = config.PAPER_TRADING_POSITION_SIZE_USD
         if self.cash_balance < position_size:
-            print(f"❌ Cannot open position: insufficient cash (${self.cash_balance:.2f} < ${position_size:.2f})")
+            self._log(f"❌ Cannot open position: insufficient cash (${self.cash_balance:.2f} < ${position_size:.2f})", 'warning')
             return None
 
         # Get current market price
         try:
             market_price = token_price(token_address)
             if not market_price or market_price <= 0:
-                print(f"❌ Cannot open position: invalid price for {symbol}")
+                self._log(f"❌ Cannot open position: invalid price for {symbol}", 'warning')
                 return None
         except Exception as e:
-            print(f"❌ Cannot open position: failed to get price for {symbol}: {e}")
+            self._log_error(f"❌ Cannot open position: failed to get price for {symbol}: {e}")
             return None
 
         # Simulate entry execution with slippage
@@ -244,11 +255,11 @@ class PositionManager:
         # Save portfolio snapshot
         self._save_portfolio_snapshot()
 
-        print(f"✅ Opened position: {symbol} @ ${execution_price:.8f}")
-        print(f"   Size: ${net_position_size:.2f} (after ${entry_fee:.2f} fees)")
-        print(f"   Stop Loss: ${stop_loss_price:.8f} ({config.PAPER_TRADING_STOP_LOSS_PCT}%)")
-        print(f"   Take Profit 1: ${tp1_price:.8f} (+{config.PAPER_TRADING_TAKE_PROFIT_1_PCT}%)")
-        print(f"   Take Profit 2: ${tp2_price:.8f} (+{config.PAPER_TRADING_TAKE_PROFIT_2_PCT}%)")
+        self._log(f"✅ Opened position: {symbol} @ ${execution_price:.8f}", 'success')
+        self._log(f"   Size: ${net_position_size:.2f} (after ${entry_fee:.2f} fees)", 'info')
+        self._log(f"   Stop Loss: ${stop_loss_price:.8f} ({config.PAPER_TRADING_STOP_LOSS_PCT}%)", 'info')
+        self._log(f"   Take Profit 1: ${tp1_price:.8f} (+{config.PAPER_TRADING_TAKE_PROFIT_1_PCT}%)", 'info')
+        self._log(f"   Take Profit 2: ${tp2_price:.8f} (+{config.PAPER_TRADING_TAKE_PROFIT_2_PCT}%)", 'info')
 
         # Send email notification
         if self.email_notifier:
@@ -265,13 +276,13 @@ class PositionManager:
         Returns trade dict if successful, None if position not found or exit fails
         """
         if position_id not in self.positions:
-            print(f"❌ Position {position_id} not found")
+            self._log(f"❌ Position {position_id} not found", 'warning')
             return None
 
         position = self.positions[position_id]
 
         if position['status'] != 'open':
-            print(f"❌ Position {position_id} is not open")
+            self._log(f"❌ Position {position_id} is not open", 'warning')
             return None
 
         # Determine exit slippage based on exit type
@@ -279,7 +290,7 @@ class PositionManager:
             slippage_pct = config.PAPER_TRADING_STOP_EXIT_SLIPPAGE_PCT
             # Simulate failed exit chance
             if random.random() < config.PAPER_TRADING_FAILED_EXIT_CHANCE:
-                print(f"❌ Failed to exit {position['symbol']} - token frozen or no liquidity!")
+                self._log(f"❌ Failed to exit {position['symbol']} - token frozen or no liquidity!", 'warning')
                 # Mark as total loss
                 execution_price = 0
                 slippage_pct = 0
@@ -358,11 +369,11 @@ class PositionManager:
 
         # Print results
         emoji = "🟢" if net_pnl_usd >= 0 else "🔴"
-        print(f"{emoji} Closed {sell_pct:.0f}% of {position['symbol']} via {exit_type}")
-        print(f"   Exit Price: ${execution_price:.8f}")
-        print(f"   P&L: ${net_pnl_usd:.2f} ({pnl_pct:+.2f}%)")
-        print(f"   Fees: ${exit_fee:.2f}")
-        print(f"   Hold Time: {hold_days:.2f} days")
+        self._log(f"{emoji} Closed {sell_pct:.0f}% of {position['symbol']} via {exit_type}", 'info')
+        self._log(f"   Exit Price: ${execution_price:.8f}", 'info')
+        self._log(f"   P&L: ${net_pnl_usd:.2f} ({pnl_pct:+.2f}%)", 'info')
+        self._log(f"   Fees: ${exit_fee:.2f}", 'info')
+        self._log(f"   Hold Time: {hold_days:.2f} days", 'info')
 
         # Send email notification
         if self.email_notifier:
@@ -463,4 +474,4 @@ class PositionManager:
         self.cash_balance = config.PAPER_TRADING_INITIAL_BALANCE
         self._save_portfolio_snapshot()
 
-        print(f"♻️ Paper trading reset to ${config.PAPER_TRADING_INITIAL_BALANCE:.2f}")
+        self._log(f"♻️ Paper trading reset to ${config.PAPER_TRADING_INITIAL_BALANCE:.2f}", 'info')

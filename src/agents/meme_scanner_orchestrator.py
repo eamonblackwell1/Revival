@@ -73,7 +73,7 @@ class MemeScannerOrchestrator:
         # Configuration
         self.scan_interval = 7200  # 120 minutes / 2 hours (optimized for API free tier limits)
         self.max_tokens_per_scan = BIRDEYE_TOKENS_PER_SORT * 3  # ~600 tokens per scan (3 sorting strategies)
-        self.min_revival_score = 0.4  # Minimum score to consider
+        self.min_revival_score = 0.7  # Minimum score to consider
 
         # Data storage - use Railway volume if available
         if os.getenv('RAILWAY_ENVIRONMENT'):
@@ -322,16 +322,41 @@ class MemeScannerOrchestrator:
                 sort_label = f", sort={sort_by}" if sort_by else ""
                 print(colored(f"  📄 Page {page+1}/{num_pages} (meme-list, offset={offset}{sort_label})", "cyan"))
 
-                response = requests.get(url, headers=headers, timeout=15)
+                response = None
+                for attempt in range(max_retries):
+                    try:
+                        response = requests.get(url, headers=headers, timeout=request_timeout)
+                    except Timeout:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(colored(f"    ⏳ BirdEye request timed out (attempt {attempt + 1}/{max_retries}) - retrying in {wait_time}s", "yellow"))
+                        time.sleep(wait_time)
+                        continue
+                    except RequestException as req_err:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(colored(f"    ⚠️ BirdEye request error (attempt {attempt + 1}/{max_retries}): {req_err} - retrying in {wait_time}s", "yellow"))
+                        time.sleep(wait_time)
+                        continue
 
-                if response.status_code == 429:
-                    print(colored(f"⚠️ Rate limit hit (HTTP 429) - waiting 60 seconds...", "yellow"))
-                    time.sleep(60)
-                    response = requests.get(url, headers=headers, timeout=15)
+                    if response.status_code == 429:
+                        wait_time = max(60, retry_delay * (attempt + 1))
+                        print(colored(f"⚠️ Rate limit hit (HTTP 429) - waiting {wait_time} seconds...", "yellow"))
+                        time.sleep(wait_time)
+                        continue
 
-                if response.status_code != 200:
-                    print(colored(f"❌ BirdEye API error: HTTP {response.status_code}", "red"))
+                    if 500 <= response.status_code < 600:
+                        wait_time = retry_delay * (attempt + 1)
+                        print(colored(f"    ⚠️ BirdEye server error HTTP {response.status_code} (attempt {attempt + 1}/{max_retries}) - retrying in {wait_time}s", "yellow"))
+                        time.sleep(wait_time)
+                        continue
+
+                    if response.status_code != 200:
+                        print(colored(f"❌ BirdEye API error: HTTP {response.status_code}", "red"))
+                        return all_tokens
+
                     break
+                else:
+                    print(colored(f"❌ BirdEye API failed after {max_retries} attempts (offset={offset}{sort_label})", "red"))
+                    return all_tokens
 
                 data = response.json()
 
@@ -994,24 +1019,30 @@ class MemeScannerOrchestrator:
 
             # Paper Trading Integration
             if PAPER_TRADING_ENABLED:
-                print(colored("\n💰 Paper Trading: Evaluating opportunities...", "yellow", attrs=['bold']))
+                self._log("💰 Paper Trading: Evaluating opportunities...", 'info')
                 try:
                     from src.agents.paper_trading_agent import PaperTradingAgent
 
                     # Initialize paper trading agent if not already done
                     if not hasattr(self, 'paper_trading_agent'):
-                        self.paper_trading_agent = PaperTradingAgent()
+                        self._log("Initializing paper trading agent", 'info')
+                        self.paper_trading_agent = PaperTradingAgent(
+                            log_fn=self._log,
+                            error_fn=self._log_error
+                        )
 
                     # Evaluate revival opportunities for paper trading
                     positions_opened = self.paper_trading_agent.evaluate_opportunities(revival_results)
 
                     if positions_opened:
-                        print(colored(f"✅ Opened {len(positions_opened)} paper trading positions", "green"))
+                        self._log(f"✅ Opened {len(positions_opened)} paper trading positions", 'success')
                     else:
-                        print(colored("📊 No new paper trading positions opened", "grey"))
+                        self._log("📊 Paper trading evaluated opportunities but did not open new positions", 'info')
 
                 except Exception as e:
-                    print(colored(f"⚠️ Paper trading error: {str(e)}", "red"))
+                    self._log_error(f"Paper trading error: {str(e)}")
+            else:
+                self._log("💰 Paper trading disabled in config - skipping evaluation", 'info')
         else:
             print(colored("\n📤 No alerts to send", "grey"))
 
