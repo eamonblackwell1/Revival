@@ -12,6 +12,7 @@ Manages paper trading positions with realistic execution simulation:
 import os
 import csv
 import random
+import math
 import threading
 import time
 from datetime import datetime, timedelta
@@ -23,7 +24,7 @@ import sys
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
 from src import config
-from src.nice_funcs import token_price
+from src.nice_funcs import token_price, token_price_dexscreener
 
 # Import email notifier
 try:
@@ -247,7 +248,7 @@ class PositionManager:
 
         # Get current market price
         try:
-            market_price = token_price(token_address)
+            market_price = token_price_dexscreener(token_address) or token_price(token_address)
             if not market_price or market_price <= 0:
                 self._log(f"❌ Cannot open position: invalid price for {symbol}", 'warning')
                 return None
@@ -439,11 +440,24 @@ class PositionManager:
         # Calculate current P&L
         pnl_pct = ((current_price - position['entry_price']) / position['entry_price']) * 100
 
+        previous_price = float(position.get('current_price', 0) or 0)
+        previous_pnl = float(position.get('current_pnl_pct', 0) or 0)
+
         position['current_price'] = current_price
         position['current_pnl_pct'] = pnl_pct
         position['last_updated'] = datetime.now().isoformat()
 
         self._save_position(position)
+
+        price_changed = not math.isclose(previous_price, current_price, rel_tol=1e-9, abs_tol=1e-12)
+        pnl_changed = not math.isclose(previous_pnl, pnl_pct, rel_tol=1e-6, abs_tol=1e-6)
+
+        return {
+            'price_changed': price_changed,
+            'pnl_changed': pnl_changed,
+            'pnl_pct': pnl_pct,
+            'position': position
+        }
 
     def check_exit_conditions(self, position_id: str, current_price: float) -> Optional[str]:
         """

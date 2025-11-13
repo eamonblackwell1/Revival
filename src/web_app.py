@@ -46,7 +46,7 @@ scanner_state = {
     'scan_count': 0,
     'last_scan_time': None,
     'settings': {
-        'scan_interval': 3600,  # 60 minutes / 1 hour (safe for BirdEye Starter tier - uses ~36% of monthly API limit)
+        'scan_interval': 14400,  # 240 minutes / 4 hours (keeps BirdEye usage well below monthly limit)
         'min_revival_score': 0.7,
         'auto_scan': False
     },
@@ -243,6 +243,12 @@ def log_activity(message, level='info'):
         'level': level
     }
     scanner_state['activity_log'].append(entry)
+    # Stream activity to stdout so Railway deploy logs show progress
+    try:
+        print(f"{entry['timestamp']} [{level.upper()}] {message}")
+    except Exception:
+        # Fallback in case stdout is unavailable
+        pass
 
     # Save to persistent file
     _save_activity_log_entry(entry)
@@ -789,9 +795,14 @@ def init_paper_trading():
         from src.agents.paper_trading_agent import PaperTradingAgent
         from src.paper_trading.performance_analyzer import PerformanceAnalyzer
 
-        paper_trading_agent = PaperTradingAgent()
         performance_analyzer = PerformanceAnalyzer()
+        paper_trading_agent = PaperTradingAgent(performance_analyzer=performance_analyzer)
         log_activity("Paper trading agent initialized", 'info')
+    else:
+        if performance_analyzer is None:
+            from src.paper_trading.performance_analyzer import PerformanceAnalyzer
+            performance_analyzer = PerformanceAnalyzer()
+        paper_trading_agent.set_performance_analyzer(performance_analyzer)
 
     return paper_trading_agent, performance_analyzer
 
@@ -892,7 +903,7 @@ def paper_metrics():
         if regenerate:
             metrics = analyzer.save_metrics()
         else:
-            metrics = analyzer.load_metrics()
+            metrics = analyzer.save_metrics()
 
         return jsonify({
             'status': 'success',

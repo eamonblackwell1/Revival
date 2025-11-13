@@ -260,6 +260,31 @@
             return `${formatter.format(num)}%`;
         }
 
+        function formatTokenPrice(value) {
+            const num = safeNumber(value);
+            if (!Number.isFinite(num)) {
+                return '$0.00';
+            }
+
+            if (num === 0) {
+                return '$0.00';
+            }
+
+            const absVal = Math.abs(num);
+            let decimals;
+            if (absVal >= 1) {
+                decimals = 4;
+            } else if (absVal >= 0.01) {
+                decimals = 6;
+            } else if (absVal >= 0.0001) {
+                decimals = 8;
+            } else {
+                decimals = 10;
+            }
+
+            return '$' + formatNumber(num, decimals);
+        }
+
         function formatNumber(value, decimals = 2) {
             const num = safeNumber(value);
             const formatter = getNumberFormatter(decimals);
@@ -812,7 +837,7 @@
                     if (paperContent && paperContent.style.display !== 'none') {
                         refreshPaperTrading();
                     }
-                }, 120000); // 2 minutes
+                }, 60000); // 1 minute
             }
         }
 
@@ -940,8 +965,8 @@
                         const pnlColor = pnlPct >= 0 ? '#48bb78' : '#f56565';
                         html += `<tr style="border-bottom: 1px solid #2d3748;">`;
                         html += `<td style="padding: 10px;">${pos.symbol}</td>`;
-                        html += `<td style="padding: 10px; text-align: right;">$${formatNumber(entryPrice, 8)}</td>`;
-                        html += `<td style="padding: 10px; text-align: right;">$${formatNumber(currentPrice, 8)}</td>`;
+                        html += `<td style="padding: 10px; text-align: right;">${formatTokenPrice(entryPrice)}</td>`;
+                        html += `<td style="padding: 10px; text-align: right;">${formatTokenPrice(currentPrice)}</td>`;
                         html += `<td style="padding: 10px; text-align: right; color: ${pnlColor};">${formatPercent(pnlPct)}</td>`;
                         html += `<td style="padding: 10px; text-align: right;">${formatCurrency(sizeUsd)}</td>`;
                         html += `<td style="padding: 10px; text-align: right;">${formatNumber(remainingPct, 0)}%</td>`;

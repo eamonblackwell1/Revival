@@ -563,6 +563,38 @@ def token_price(address):
         return price_data['data']['value']
     else:
         return None
+
+
+def token_price_dexscreener(address):
+    """
+    Fetch the latest USD price for a token using DexScreener (free, no key).
+    Returns float price when available, otherwise None.
+    """
+    try:
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
+        response = requests.get(url, timeout=10)
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        pairs = data.get('pairs') or []
+        if not pairs:
+            return None
+
+        # Pick the pair with the highest USD liquidity for a stable quote
+        main_pair = max(
+            pairs,
+            key=lambda pair: float(pair.get('liquidity', {}).get('usd', 0) or 0)
+        )
+
+        price_value = main_pair.get('priceUsd')
+        if price_value is None:
+            return None
+
+        return float(price_value)
+    except Exception:
+        return None
     
 # price = token_price('2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv')
 # print(price)

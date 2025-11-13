@@ -22,7 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
 from paper_trading.position_manager import PositionManager
-from nice_funcs import token_price
+from nice_funcs import token_price, token_price_dexscreener
 
 
 class PaperTradingAgent:
@@ -47,7 +47,7 @@ class PaperTradingAgent:
         """Fallback error logger that prints to stdout"""
         print(message)
 
-    def __init__(self, log_fn=None, error_fn=None):
+    def __init__(self, log_fn=None, error_fn=None, performance_analyzer=None):
         """Initialize paper trading agent"""
         self._log = log_fn or self._default_log
         self._log_error = error_fn or self._default_log_error
@@ -56,6 +56,7 @@ class PaperTradingAgent:
             log_fn=self._log,
             error_fn=self._log_error
         )
+        self.performance_analyzer = performance_analyzer
         self.monitoring_active = False
         self.monitor_thread = None
 
@@ -72,6 +73,23 @@ class PaperTradingAgent:
         if open_positions:
             self._log(f"\n🔄 Found {len(open_positions)} existing positions - auto-resuming monitoring...", 'info')
             self.start_monitoring()
+
+        # Ensure performance metrics exist on startup
+        self._update_performance_metrics()
+
+    def set_performance_analyzer(self, analyzer):
+        """Attach or update the performance analyzer."""
+        self.performance_analyzer = analyzer
+        self._update_performance_metrics()
+
+    def _update_performance_metrics(self):
+        """Recalculate paper trading performance metrics if analyzer available."""
+        if not self.performance_analyzer:
+            return
+        try:
+            self.performance_analyzer.save_metrics()
+        except Exception as exc:
+            self._log_error(f"Performance metrics update failed: {exc}")
 
     def evaluate_opportunities(self, opportunities: List[Dict]) -> List[Dict]:
         """
@@ -131,6 +149,9 @@ class PaperTradingAgent:
 
         self._log(f"\n✅ Opened {len(positions_opened)} paper trading positions", 'info')
 
+        if positions_opened:
+            self._update_performance_metrics()
+
         # Start monitoring if we have positions and monitoring not active
         if positions_opened and not self.monitoring_active:
             self.start_monitoring()
@@ -184,7 +205,7 @@ class PaperTradingAgent:
 
                     # Get current price
                     try:
-                        current_price = token_price(token_address)
+                        current_price = token_price_dexscreener(token_address) or token_price(token_address)
                         if not current_price or current_price <= 0:
                             self._log(f"⚠️  Invalid price for {symbol}, skipping check", 'warning')
                             continue
@@ -193,10 +214,8 @@ class PaperTradingAgent:
                         continue
 
                     # Update position with current price
-                    self.position_manager.update_position_price(position_id, current_price)
-
-                    # Calculate current P&L
-                    pnl_pct = ((current_price - position['entry_price']) / position['entry_price']) * 100
+                    update_info = self.position_manager.update_position_price(position_id, current_price)
+                    pnl_pct = update_info.get('pnl_pct', 0.0) if update_info else ((current_price - position['entry_price']) / position['entry_price']) * 100
 
                     # Check if exit conditions met
                     exit_type = self.position_manager.check_exit_conditions(position_id, current_price)
@@ -216,9 +235,13 @@ class PaperTradingAgent:
 
                         if trade:
                             self._log("✅ Exit executed successfully", 'success')
+                            self._update_performance_metrics()
                     else:
-                        # Just log current status
-                        self._log(f"   {symbol}: ${current_price:.8f} ({pnl_pct:+.2f}%)", 'info')
+                        should_log = True
+                        if update_info:
+                            should_log = update_info.get('price_changed') or update_info.get('pnl_changed')
+                        if should_log:
+                            self._log(f"   {symbol}: ${current_price:.8f} ({pnl_pct:+.2f}%)", 'info')
 
                 # Sleep until next check
                 time.sleep(config.PAPER_TRADING_PRICE_CHECK_INTERVAL)
@@ -250,7 +273,7 @@ class PaperTradingAgent:
 
         # Get current price
         try:
-            current_price = token_price(position['token_address'])
+            current_price = token_price_dexscreener(position['token_address']) or token_price(position['token_address'])
             if not current_price or current_price <= 0:
                 self._log(f"❌ Cannot close: invalid price for {position['symbol']}", 'warning')
                 return False
@@ -267,6 +290,7 @@ class PaperTradingAgent:
 
         if trade:
             self._log(f"✅ Manually closed position {position['symbol']}", 'success')
+            self._update_performance_metrics()
             return True
         else:
             self._log(f"❌ Failed to close position {position['symbol']}", 'warning')

@@ -155,7 +155,7 @@ PAPER_TRADING_PROFIT_EXIT_SLIPPAGE_PCT = 2  # 2% slippage on profit-taking exits
 PAPER_TRADING_STOP_EXIT_SLIPPAGE_PCT = 10  # 10% slippage on stop-loss exits (panic selling)
 PAPER_TRADING_JUPITER_FEE_PCT = 0.06  # 0.06% Jupiter swap fee per trade
 PAPER_TRADING_FAILED_EXIT_CHANCE = 0.05  # 5% chance of failed exit (token frozen/no liquidity)
-PAPER_TRADING_PRICE_CHECK_INTERVAL = 30  # Check prices every 30 seconds
+PAPER_TRADING_PRICE_CHECK_INTERVAL = 60  # Check prices every 1 minute
 
 # ============================================================================
 # Production Deployment Settings 🚀

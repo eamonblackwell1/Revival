@@ -71,7 +71,7 @@ class MemeScannerOrchestrator:
             print(colored("⚠️ Moon Dev API not configured (optional)", "yellow"))
 
         # Configuration
-        self.scan_interval = 7200  # 120 minutes / 2 hours (optimized for API free tier limits)
+        self.scan_interval = 14400  # 240 minutes / 4 hours (gentle on API usage)
         self.max_tokens_per_scan = BIRDEYE_TOKENS_PER_SORT * 3  # ~600 tokens per scan (3 sorting strategies)
         self.min_revival_score = 0.7  # Minimum score to consider
 
