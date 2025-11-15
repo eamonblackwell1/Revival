@@ -18,6 +18,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import pandas as pd
+from pandas.errors import EmptyDataError
 
 # Import configuration
 import sys
@@ -127,7 +128,10 @@ class PositionManager:
         """Load active positions from CSV"""
         positions = {}
         if os.path.exists(self.positions_file):
-            df = pd.read_csv(self.positions_file)
+            try:
+                df = pd.read_csv(self.positions_file)
+            except EmptyDataError:
+                return positions
             # Only load open positions
             active_df = df[df['status'] == 'open']
             for _, row in active_df.iterrows():
@@ -137,7 +141,10 @@ class PositionManager:
     def _load_portfolio_state(self):
         """Load latest portfolio state to get current cash balance"""
         if os.path.exists(self.portfolio_file):
-            df = pd.read_csv(self.portfolio_file)
+            try:
+                df = pd.read_csv(self.portfolio_file)
+            except EmptyDataError:
+                df = pd.DataFrame()
             if len(df) > 0:
                 latest = df.iloc[-1]
                 self.cash_balance = float(latest['cash_usd'])
@@ -166,7 +173,10 @@ class PositionManager:
 
         # Load all positions
         if os.path.exists(self.positions_file):
-            df = pd.read_csv(self.positions_file)
+            try:
+                df = pd.read_csv(self.positions_file)
+            except EmptyDataError:
+                df = pd.DataFrame()
         else:
             df = pd.DataFrame()
 
@@ -195,7 +205,13 @@ class PositionManager:
 
     def _save_trade(self, trade: Dict):
         """Append a completed trade to trades history"""
-        df = pd.read_csv(self.trades_file) if os.path.exists(self.trades_file) else pd.DataFrame()
+        if os.path.exists(self.trades_file):
+            try:
+                df = pd.read_csv(self.trades_file)
+            except EmptyDataError:
+                df = pd.DataFrame()
+        else:
+            df = pd.DataFrame()
         df = pd.concat([df, pd.DataFrame([trade])], ignore_index=True)
         df.to_csv(self.trades_file, index=False)
 
@@ -222,11 +238,23 @@ class PositionManager:
             'total_pnl_pct': total_pnl_pct
         }
 
-        df = pd.read_csv(self.portfolio_file) if os.path.exists(self.portfolio_file) else pd.DataFrame()
+        if os.path.exists(self.portfolio_file):
+            try:
+                df = pd.read_csv(self.portfolio_file)
+            except EmptyDataError:
+                df = pd.DataFrame()
+        else:
+            df = pd.DataFrame()
         df = pd.concat([df, pd.DataFrame([snapshot])], ignore_index=True)
         df.to_csv(self.portfolio_file, index=False)
 
-    def open_position(self, token_address: str, symbol: str, revival_score: float) -> Optional[Dict]:
+    def open_position(
+        self,
+        token_address: str,
+        symbol: str,
+        revival_score: float,
+        market_cap: Optional[float] = None
+    ) -> Optional[Dict]:
         """
         Open a new paper trading position with realistic execution simulation
 
@@ -290,7 +318,9 @@ class PositionManager:
             'take_profit_2_price': tp2_price,
             'current_price': execution_price,
             'current_pnl_pct': 0.0,
-            'last_updated': entry_time
+            'last_updated': entry_time,
+            'entry_market_cap': market_cap,
+            'current_market_cap': market_cap
         }
 
         # Deduct cash
@@ -445,6 +475,19 @@ class PositionManager:
 
         position['current_price'] = current_price
         position['current_pnl_pct'] = pnl_pct
+
+        entry_market_cap = position.get('entry_market_cap')
+        entry_price = position.get('entry_price') or 0
+        if entry_market_cap not in (None, "") and entry_price:
+            try:
+                entry_market_cap = float(entry_market_cap)
+                entry_price = float(entry_price)
+                price_ratio = current_price / entry_price if entry_price else 0
+                if price_ratio and entry_market_cap:
+                    position['current_market_cap'] = entry_market_cap * price_ratio
+            except (ValueError, TypeError, ZeroDivisionError):
+                pass
+
         position['last_updated'] = datetime.now().isoformat()
 
         self._save_position(position)
@@ -505,13 +548,23 @@ class PositionManager:
             for field in [
                 'entry_price', 'quantity_usd', 'remaining_pct', 'stop_loss_price',
                 'take_profit_1_price', 'take_profit_2_price', 'current_price',
-                'current_pnl_pct'
+            'current_pnl_pct', 'entry_market_cap', 'current_market_cap'
             ]:
                 if field in position and position[field] not in (None, ""):
                     try:
                         position[field] = float(position[field])
                     except (TypeError, ValueError):
                         pass
+
+            size_usd = float(position.get('quantity_usd', 0) or 0)
+            remaining_pct = float(position.get('remaining_pct', 0) or 0)
+            pnl_pct = float(position.get('current_pnl_pct', 0) or 0)
+
+            remaining_fraction = remaining_pct / 100.0
+            position['remaining_value_usd'] = (
+                size_usd * remaining_fraction * (1 + pnl_pct / 100.0)
+                if remaining_fraction > 0 else 0.0
+            )
 
             positions.append(position)
 

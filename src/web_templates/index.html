@@ -949,27 +949,29 @@
                     let html = '<table style="width: 100%; border-collapse: collapse;">';
                     html += '<thead style="background: #2d3748;"><tr>';
                     html += '<th style="padding: 10px; text-align: left;">Symbol</th>';
-                    html += '<th style="padding: 10px; text-align: right;">Entry</th>';
-                    html += '<th style="padding: 10px; text-align: right;">Current</th>';
+                    html += '<th style="padding: 10px; text-align: right;">Entry MC</th>';
+                    html += '<th style="padding: 10px; text-align: right;">Current MC</th>';
                     html += '<th style="padding: 10px; text-align: right;">P&L</th>';
                     html += '<th style="padding: 10px; text-align: right;">Size</th>';
                     html += '<th style="padding: 10px; text-align: right;">Remaining</th>';
                     html += '</tr></thead><tbody>';
 
                     data.positions.forEach(pos => {
-                        const entryPrice = safeNumber(pos.entry_price);
-                        const currentPrice = safeNumber(pos.current_price);
+                        const entryMarketCap = safeNumber(pos.entry_market_cap);
+                        const currentMarketCap = safeNumber(pos.current_market_cap);
                         const pnlPct = safeNumber(pos.current_pnl_pct);
                         const sizeUsd = safeNumber(pos.quantity_usd);
                         const remainingPct = safeNumber(pos.remaining_pct);
+                        const remainingUsd = safeNumber(pos.remaining_value_usd);
                         const pnlColor = pnlPct >= 0 ? '#48bb78' : '#f56565';
                         html += `<tr style="border-bottom: 1px solid #2d3748;">`;
                         html += `<td style="padding: 10px;">${pos.symbol}</td>`;
-                        html += `<td style="padding: 10px; text-align: right;">${formatTokenPrice(entryPrice)}</td>`;
-                        html += `<td style="padding: 10px; text-align: right;">${formatTokenPrice(currentPrice)}</td>`;
+                        html += `<td style="padding: 10px; text-align: right;">${entryMarketCap ? formatCurrency(entryMarketCap, 0) : '—'}</td>`;
+                        html += `<td style="padding: 10px; text-align: right;">${currentMarketCap ? formatCurrency(currentMarketCap, 0) : '—'}</td>`;
                         html += `<td style="padding: 10px; text-align: right; color: ${pnlColor};">${formatPercent(pnlPct)}</td>`;
                         html += `<td style="padding: 10px; text-align: right;">${formatCurrency(sizeUsd)}</td>`;
-                        html += `<td style="padding: 10px; text-align: right;">${formatNumber(remainingPct, 0)}%</td>`;
+                        const remainingDisplay = `${formatCurrency(remainingUsd)} (${formatNumber(remainingPct, 0)}%)`;
+                        html += `<td style="padding: 10px; text-align: right;">${remainingDisplay}</td>`;
                         html += `</tr>`;
                     });
 
@@ -1001,6 +1003,7 @@
                     html += '<th style="padding: 8px; text-align: right;">Entry</th>';
                     html += '<th style="padding: 8px; text-align: right;">Exit</th>';
                     html += '<th style="padding: 8px; text-align: right;">P&L</th>';
+                    html += '<th style="padding: 8px; text-align: right;">P&L ($)</th>';
                     html += '<th style="padding: 8px; text-align: center;">Exit Type</th>';
                     html += '<th style="padding: 8px; text-align: right;">Hold Time</th>';
                     html += '</tr></thead><tbody>';
@@ -1010,6 +1013,7 @@
                         const entryPrice = safeNumber(trade.entry_price);
                         const exitPrice = safeNumber(trade.exit_price);
                         const pnlPct = safeNumber(trade.pnl_pct);
+                        const pnlUsd = safeNumber(trade.pnl_usd);
                         const pnlColor = pnlPct >= 0 ? '#48bb78' : '#f56565';
                         newTradeIds.add(trade.id);
 
@@ -1039,6 +1043,7 @@
                         html += `<td style="padding: 8px; text-align: right;">$${formatNumber(entryPrice, 8)}</td>`;
                         html += `<td style="padding: 8px; text-align: right;">$${formatNumber(exitPrice, 8)}</td>`;
                         html += `<td style="padding: 8px; text-align: right; color: ${pnlColor};">${formatPercent(pnlPct)}</td>`;
+                        html += `<td style="padding: 8px; text-align: right; color: ${pnlColor};">${formatCurrency(pnlUsd)}</td>`;
                         html += `<td style="padding: 8px; text-align: center;"><span class="${badgeClass}">${trade.exit_type.replace(/_/g, ' ')}</span></td>`;
                         html += `<td style="padding: 8px; text-align: right;">${parseFloat(trade.hold_days).toFixed(1)}d</td>`;
                         html += `</tr>`;

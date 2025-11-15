@@ -138,7 +138,8 @@ class PaperTradingAgent:
             position = self.position_manager.open_position(
                 token_address=token_address,
                 symbol=symbol,
-                revival_score=revival_score
+                revival_score=revival_score,
+                market_cap=opp.get('market_cap')
             )
 
             if position:
